@@ -1,0 +1,15 @@
+{
+  "name": "gamer-world-bot",
+  "version": "1.0.0",
+  "description": "Um bot para Discord focado na comunidade gamer.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "Seu Nome",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.15.3"
+  }
+}
