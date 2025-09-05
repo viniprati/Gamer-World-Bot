@@ -1,6 +1,4 @@
 const { EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 
 module.exports = {
     name: 'ajuda',
@@ -8,23 +6,30 @@ module.exports = {
     async execute(message, args, client) {
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
-            .setTitle('Comandos do Gamer World Bot')
+            .setTitle('📖 Comandos do Gamer World Bot')
             .setDescription('Aqui está a lista de todos os meus comandos:')
             .setTimestamp()
             .setFooter({ text: `Solicitado por ${message.author.tag}` });
 
-        const commandFolders = fs.readdirSync(path.join(__dirname, '../../commands'));
+        // Agrupa os comandos por pasta (se quiser)
+        const categories = {};
 
-        for (const folder of commandFolders) {
-            const commandFiles = fs.readdirSync(path.join(__dirname, '../../commands', folder)).filter(file => file.endsWith('.js'));
-            let commandsInFolder = '';
-            for (const file of commandFiles) {
-                const command = require(`../../commands/${folder}/${file}`);
-                commandsInFolder += `\`!${command.name}\` - ${command.description}\n`;
-            }
-            if (commandsInFolder) {
-                embed.addFields({ name: folder.charAt(0).toUpperCase() + folder.slice(1) + ' Comandos', value: commandsInFolder, inline: false });
-            }
+        client.commands.forEach(cmd => {
+            // pega a categoria a partir do caminho do arquivo
+            const parts = cmd.__filename?.split(path.sep) || [];
+            const folder = parts[parts.length - 2] || 'Outros';
+
+            if (!categories[folder]) categories[folder] = [];
+            categories[folder].push(cmd);
+        });
+
+        for (const [folder, cmds] of Object.entries(categories)) {
+            const commandsList = cmds.map(c => `\`!${c.name}\` - ${c.description || 'Sem descrição'}`).join('\n');
+            embed.addFields({
+                name: folder.charAt(0).toUpperCase() + folder.slice(1),
+                value: commandsList,
+                inline: false
+            });
         }
 
         message.channel.send({ embeds: [embed] });

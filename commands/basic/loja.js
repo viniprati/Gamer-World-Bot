@@ -7,7 +7,7 @@ module.exports = {
     async execute(message, args, client) {
         if (!args[0]) return message.reply('Use: `!buy <prata | ouro | diamante>`');
 
-        const filePath = path.join(__dirname, '..', '..', 'economy.json');
+        const filePath = path.join(__dirname, '..', 'economy.json'); // corrigido (volta só 1 pasta)
         let data = {};
         if (fs.existsSync(filePath)) {
             data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -36,7 +36,7 @@ module.exports = {
         const role = message.guild.roles.cache.get(vip.id);
         if (!role) return message.reply('Cargo VIP não encontrado no servidor.');
 
-        const member = message.guild.members.cache.get(userId);
+        const member = await message.guild.members.fetch(userId);
         await member.roles.add(role);
 
         message.reply(`Parabéns! Você comprou o cargo ${vip.name} por **${vip.price} moedas** 🎉`);
