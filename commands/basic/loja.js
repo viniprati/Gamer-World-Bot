@@ -14,40 +14,52 @@ module.exports = {
             .setFooter({ text: 'Economize suas moedas e garanta seu VIP!' });
 
         embed.addFields(
-            { name: '🥈 VIP Prata', value: 'Preço: **80000 moedas**\nBenefícios: Cargos especiais.', inline: false },
-            { name: '🥇 VIP Ouro', value: 'Preço: **120000 moedas**\nBenefícios: Todos do Prata + prioridade em eventos.', inline: false },
-            { name: '💎 VIP Diamante', value: 'Preço: **200000 moedas**\nBenefícios: Todos do Ouro + destaque no servidor.', inline: false }
+            {
+                name: '💎 VIP Diamante',
+                value: `☆ Benefícios ☆\n- Acesso a todos benefícios do VIP Ouro\n- Tempo de pay: 10 horas\n- Pode dar um VIP Ouro de 15 dias para duas pessoas\n- Multiplicador de XP: 2,5\n- 7 entradas extras em sorteios`,
+                inline: false
+            },
+            {
+                name: '🥇 VIP Ouro',
+                value: `☆ Benefícios ☆\n- Acesso a todos os benefícios do VIP Prata\n- Tempo de pay: 4 horas\n- Permissão pra enviar fotos\n- Multiplicador de XP: 2,0\n- 5 entradas extras em sorteios`,
+                inline: false
+            },
+            {
+                name: '🥈 VIP Prata',
+                value: `☆ Benefícios ☆\n- Acesso à categoria VIP\n- Sorteios exclusivos\n- Tempo de pay: 2 horas\n- Multiplicador de XP: 1,5\n- 2 entradas extras em sorteios`,
+                inline: false
+            }
         );
 
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('vip_prata')
-                    .setLabel('🥈 VIP Prata')
+                    .setLabel('🥈 Comprar Prata')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('vip_ouro')
-                    .setLabel('🥇 VIP Ouro')
+                    .setLabel('🥇 Comprar Ouro')
                     .setStyle(ButtonStyle.Success),
                 new ButtonBuilder()
                     .setCustomId('vip_diamante')
-                    .setLabel('💎 VIP Diamante')
+                    .setLabel('💎 Comprar Diamante')
                     .setStyle(ButtonStyle.Danger)
             );
 
         const msg = await message.channel.send({ embeds: [embed], components: [row] });
 
-        const filter = i => i.user.id === message.author.id; // só quem chamou pode clicar
-        const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 60s para clicar
+        const filter = i => i.user.id === message.author.id;
+        const collector = msg.createMessageComponentCollector({ filter, time: 60000 });
 
         collector.on('collect', async i => {
-            const choiceMap = {
+            const vipRoles = {
                 vip_prata: { id: '1389915201641512960', price: 80000, name: '🥈 VIP Prata' },
                 vip_ouro: { id: '1389915441157115934', price: 120000, name: '🥇 VIP Ouro' },
                 vip_diamante: { id: '1389915552084004884', price: 200000, name: '💎 VIP Diamante' }
             };
 
-            const vip = choiceMap[i.customId];
+            const vip = vipRoles[i.customId];
             if (!vip) return;
 
             const filePath = path.join(__dirname, '../../economy.json');
@@ -73,7 +85,7 @@ module.exports = {
         });
 
         collector.on('end', () => {
-            msg.edit({ components: [] }); // desativa os botões depois de 60s
+            msg.edit({ components: [] });
         });
     },
 };
