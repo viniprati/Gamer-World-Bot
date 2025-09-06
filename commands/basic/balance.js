@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
     name: 'balance',
@@ -13,13 +14,22 @@ module.exports = {
         const balance = data[userId] || 0;
 
         const ranking = Object.entries(data)
-            .sort((a, b) => b[1] - a[1]) // maior saldo primeiro
+            .sort((a, b) => b[1] - a[1])
             .map(([id]) => id);
 
         const position = ranking.indexOf(userId) + 1;
 
-        message.reply(
-            `🎮 Você tem ${balance} moedas.\n🏆 Sua posição no ranking é: ${position}º lugar.`
-        );
+        const embed = new EmbedBuilder()
+            .setColor('#00BFFF')
+            .setTitle(`💰 Saldo de ${message.author.username}`)
+            .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                { name: 'Moedas', value: `🎮 ${balance}`, inline: true },
+                { name: 'Ranking', value: `🏆 ${position}º lugar`, inline: true }
+            )
+            .setFooter({ text: 'Sistema de economia 💸', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
+
+        message.reply({ embeds: [embed] });
     },
 };
