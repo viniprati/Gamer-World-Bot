@@ -1,4 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
     name: 'ajuda',
@@ -6,30 +8,34 @@ module.exports = {
     async execute(message, args, client) {
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
-            .setTitle('📖 Comandos do Gamer World Bot')
+            .setTitle('Comandos do Gamer World Bot')
             .setDescription('Aqui está a lista de todos os meus comandos:')
             .setTimestamp()
             .setFooter({ text: `Solicitado por ${message.author.tag}` });
 
-        // Agrupa os comandos por pasta (se quiser)
-        const categories = {};
+        const commandsPath = path.join(__dirname, '../../commands');
+        const commandFolders = fs.readdirSync(commandsPath);
 
-        client.commands.forEach(cmd => {
-            // pega a categoria a partir do caminho do arquivo
-            const parts = cmd.__filename?.split(path.sep) || [];
-            const folder = parts[parts.length - 2] || 'Outros';
+        for (const folder of commandFolders) {
+            const folderPath = path.join(commandsPath, folder);
+            if (!fs.lstatSync(folderPath).isDirectory()) continue; // ignora arquivos diretos
 
-            if (!categories[folder]) categories[folder] = [];
-            categories[folder].push(cmd);
-        });
+            const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+            if (commandFiles.length === 0) continue; // ignora pastas sem comandos
 
-        for (const [folder, cmds] of Object.entries(categories)) {
-            const commandsList = cmds.map(c => `\`!${c.name}\` - ${c.description || 'Sem descrição'}`).join('\n');
-            embed.addFields({
-                name: folder.charAt(0).toUpperCase() + folder.slice(1),
-                value: commandsList,
-                inline: false
-            });
+            let commandsInFolder = '';
+            for (const file of commandFiles) {
+                const command = require(path.join(folderPath, file));
+                commandsInFolder += `\`!${command.name}\` - ${command.description || 'Sem descrição'}\n`;
+            }
+
+            embed.addFields([
+                {
+                    name: folder.charAt(0).toUpperCase() + folder.slice(1) + ' Comandos',
+                    value: commandsInFolder,
+                    inline: false
+                }
+            ]);
         }
 
         message.channel.send({ embeds: [embed] });

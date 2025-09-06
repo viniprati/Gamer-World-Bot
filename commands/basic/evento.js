@@ -1,29 +1,64 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
     name: 'evento',
-    description: 'Mostra informações sobre o próximo evento gamer.',
+    description: 'Evento de Clash Royale com botão de inscrição.',
     async execute(message, args, client) {
-        // Você pode configurar estas informações em um arquivo de configuração ou puxar de uma API
-        const nomeEvento = "Torneio de LoL - Copa Nexus";
-        const dataEvento = "15/08/2024 às 19:00 BRT";
-        const descricaoEvento = "Preparem-se para a batalha! Reúnam seus times e mostrem quem é o melhor na Copa Nexus. Premiação para os top 3!";
+        // Configuração do evento
+        const nomeEvento = "Torneio Clash Royale";
+        const dataEvento = "20/09/2025 às 18:00 BRT";
+        const descricaoEvento = "Mostre suas habilidades no Clash Royale! Premiação para os top 3 do torneio.";
         const linkInscricao = "https://link-para-inscricao.com";
-        const imagemEvento = "https://i.imgur.com/example-event-image.png"; // Substitua por uma imagem real
+        const imagemEvento = "https://i.imgur.com/ClashRoyale.png"; // substitua por uma imagem real
 
         const embed = new EmbedBuilder()
-            .setColor('#FF5733') // Cor laranja para eventos gamer
+            .setColor('#FF5733')
             .setTitle(`🏆 Próximo Evento: ${nomeEvento}`)
             .setDescription(descricaoEvento)
             .addFields(
                 { name: '📅 Data e Hora', value: dataEvento, inline: false },
-                { name: '🔗 Link para Inscrição', value: `[Clique aqui para se inscrever](${linkInscricao})`, inline: false }
+                { name: '🔗 Link para Inscrição', value: `[Clique aqui](${linkInscricao})`, inline: false }
             )
             .setImage(imagemEvento)
             .setTimestamp()
-            .setFooter({ text: 'Não perca! Boas festas a todos os gamers!' });
+            .setFooter({ text: 'Clique no botão abaixo para se inscrever!' });
 
-        message.channel.send({ embeds: [embed] });
-        message.channel.send("A imagem do evento é:");
-},
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('inscrever_clash')
+                    .setLabel('📝 Inscrever-se')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+        const msg = await message.channel.send({ embeds: [embed], components: [row] });
+
+        const filter = i => i.customId === 'inscrever_clash';
+        const collector = msg.createMessageComponentCollector({ filter, time: 24 * 60 * 60 * 1000 }); // 24h
+
+        const participantesPath = path.join(__dirname, '../../participantes.json');
+        if (!fs.existsSync(participantesPath)) fs.writeFileSync(participantesPath, JSON.stringify({}));
+
+        collector.on('collect', async i => {
+            const data = JSON.parse(fs.readFileSync(participantesPath, 'utf8'));
+            const userId = i.user.id;
+
+            if (!data[nomeEvento]) data[nomeEvento] = [];
+
+            if (data[nomeEvento].includes(userId)) {
+                return i.reply({ content: 'Você já está inscrito neste evento!', ephemeral: true });
+            }
+
+            data[nomeEvento].push(userId);
+            fs.writeFileSync(participantesPath, JSON.stringify(data, null, 2));
+
+            i.reply({ content: `✅ Você se inscreveu no evento **${nomeEvento}**!`, ephemeral: true });
+        });
+
+        collector.on('end', () => {
+            msg.edit({ components: [] });
+        });
+    },
 };
