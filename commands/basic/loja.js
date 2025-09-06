@@ -9,48 +9,46 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🏪 Loja de VIPs')
-            .setDescription('Clique no botão correspondente para comprar seu VIP!\nVocê precisa ter moedas suficientes.')
+            .setDescription('Clique no botão para comprar seu VIP!\nVocê precisa ter moedas suficientes.')
             .setTimestamp()
             .setFooter({ text: 'Economize suas moedas e garanta seu VIP!' });
 
         embed.addFields(
             {
-                name: '💎 VIP Diamante',
-                value: `☆ Benefícios ☆\n- Acesso a todos benefícios do VIP Ouro\n- Tempo de pay: 10 horas\n- Pode dar um VIP Ouro de 15 dias para duas pessoas\n- Multiplicador de XP: 2,5\n- 7 entradas extras em sorteios`,
+                name: '💎 VIP Diamante — 200000 moedas',
+                value: `☆ Benefícios ☆\n- Acesso a todos benefícios do VIP Ouro\n- Tempo de pay: 10h\n- Pode dar 2 VIP Ouro de 15 dias\n- Multiplicador XP: 2,5\n- 7 entradas extras em sorteios`,
                 inline: false
             },
             {
-                name: '🥇 VIP Ouro',
-                value: `☆ Benefícios ☆\n- Acesso a todos os benefícios do VIP Prata\n- Tempo de pay: 4 horas\n- Permissão pra enviar fotos\n- Multiplicador de XP: 2,0\n- 5 entradas extras em sorteios`,
+                name: '🥇 VIP Ouro — 120000 moedas',
+                value: `☆ Benefícios ☆\n- Acesso a todos benefícios do VIP Prata\n- Tempo de pay: 4h\n- Permissão enviar fotos\n- Multiplicador XP: 2,0\n- 5 entradas extras em sorteios`,
                 inline: false
             },
             {
-                name: '🥈 VIP Prata',
-                value: `☆ Benefícios ☆\n- Acesso à categoria VIP\n- Sorteios exclusivos\n- Tempo de pay: 2 horas\n- Multiplicador de XP: 1,5\n- 2 entradas extras em sorteios`,
+                name: '🥈 VIP Prata — 80000 moedas',
+                value: `☆ Benefícios ☆\n- Acesso à categoria VIP\n- Sorteios exclusivos\n- Tempo de pay: 2h\n- Multiplicador XP: 1,5\n- 2 entradas extras em sorteios`,
                 inline: false
             }
         );
 
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('vip_prata')
-                    .setLabel('🥈 Comprar Prata')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId('vip_ouro')
-                    .setLabel('🥇 Comprar Ouro')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId('vip_diamante')
-                    .setLabel('💎 Comprar Diamante')
-                    .setStyle(ButtonStyle.Danger)
-            );
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('vip_prata')
+                .setLabel('🥈 Comprar Prata')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('vip_ouro')
+                .setLabel('🥇 Comprar Ouro')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('vip_diamante')
+                .setLabel('💎 Comprar Diamante')
+                .setStyle(ButtonStyle.Danger)
+        );
 
         const msg = await message.channel.send({ embeds: [embed], components: [row] });
 
-        const filter = i => i.user.id === message.author.id;
-        const collector = msg.createMessageComponentCollector({ filter, time: 60000 });
+        const collector = msg.createMessageComponentCollector({ time: 60000 });
 
         collector.on('collect', async i => {
             const vipRoles = {
@@ -66,11 +64,11 @@ module.exports = {
             let data = {};
             if (fs.existsSync(filePath)) data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
-            const userId = message.author.id;
+            const userId = i.user.id;
             if (!data[userId]) data[userId] = 0;
 
             if (data[userId] < vip.price) {
-                return i.reply({ content: `Você não tem moedas suficientes para comprar ${vip.name}!`, ephemeral: true });
+                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}.`, ephemeral: true });
             }
 
             data[userId] -= vip.price;
@@ -78,10 +76,10 @@ module.exports = {
 
             const member = await message.guild.members.fetch(userId);
             const role = message.guild.roles.cache.get(vip.id);
-            if (!role) return i.reply({ content: 'Cargo VIP não encontrado no servidor.', ephemeral: true });
+            if (!role) return i.reply({ content: '❌ Cargo VIP não encontrado no servidor.', ephemeral: true });
 
             await member.roles.add(role);
-            i.reply({ content: `Parabéns! Você comprou ${vip.name} por **${vip.price} moedas** 🎉`, ephemeral: true });
+            i.reply({ content: `✅ Parabéns! Você comprou ${vip.name} por **${vip.price} moedas** 🎉`, ephemeral: true });
         });
 
         collector.on('end', () => {
