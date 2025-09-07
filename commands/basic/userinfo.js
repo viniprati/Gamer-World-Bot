@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { getBadges } = require('../../utils/badges');
+const { getBadges } = require('../../commands/basic/badge');
 
 module.exports = {
     name: 'userinfo',
