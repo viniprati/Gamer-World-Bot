@@ -1,63 +1,48 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
 module.exports = {
     name: 'loja',
-    description: 'Mostra a loja de VIPs do servidor com botões de compra.',
+    description: 'Mostra a loja de VIPs e permite comprar pelo menu.',
     async execute(message, args, client) {
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🏪 Loja de VIPs')
-            .setDescription('Clique no botão para comprar seu VIP!\nVocê precisa ter moedas suficientes.')
-            .setTimestamp()
+            .setDescription('Selecione abaixo o VIP que deseja comprar.\nVocê precisa ter moedas suficientes.')
+            .addFields(
+                { name: '💎 VIP Diamante — 200000 moedas', value: 'Benefícios: +2 VIP Ouro, XP 2.5x, pay 10h, 7 sorteios', inline: false },
+                { name: '🥇 VIP Ouro — 120000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
+                { name: '🥈 VIP Prata — 80000 moedas', value: 'Benefícios: XP 1.5x, pay 2h, categoria VIP, 2 sorteios', inline: false }
+            )
             .setFooter({ text: 'Economize suas moedas e garanta seu VIP!' });
 
-        embed.addFields(
-            {
-                name: '💎 VIP Diamante — 200000 moedas',
-                value: `☆ Benefícios ☆\n- Acesso a todos benefícios do VIP Ouro\n- Tempo de pay: 10h\n- Pode dar 2 VIP Ouro de 15 dias\n- Multiplicador XP: 2,5\n- 7 entradas extras em sorteios`,
-                inline: false
-            },
-            {
-                name: '🥇 VIP Ouro — 120000 moedas',
-                value: `☆ Benefícios ☆\n- Acesso a todos benefícios do VIP Prata\n- Tempo de pay: 4h\n- Permissão enviar fotos\n- Multiplicador XP: 2,0\n- 5 entradas extras em sorteios`,
-                inline: false
-            },
-            {
-                name: '🥈 VIP Prata — 80000 moedas',
-                value: `☆ Benefícios ☆\n- Acesso à categoria VIP\n- Sorteios exclusivos\n- Tempo de pay: 2h\n- Multiplicador XP: 1,5\n- 2 entradas extras em sorteios`,
-                inline: false
-            }
-        );
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('select_vip')
+            .setPlaceholder('Selecione um VIP...')
+            .addOptions(
+                { label: '🥈 VIP Prata', description: 'Custa 80000 moedas', value: 'prata' },
+                { label: '🥇 VIP Ouro', description: 'Custa 120000 moedas', value: 'ouro' },
+                { label: '💎 VIP Diamante', description: 'Custa 200000 moedas', value: 'diamante' }
+            );
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('vip_prata')
-                .setLabel('🥈 Comprar Prata')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId('vip_ouro')
-                .setLabel('🥇 Comprar Ouro')
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId('vip_diamante')
-                .setLabel('💎 Comprar Diamante')
-                .setStyle(ButtonStyle.Danger)
-        );
+        const row = new ActionRowBuilder().addComponents(selectMenu);
 
         const msg = await message.channel.send({ embeds: [embed], components: [row] });
 
         const collector = msg.createMessageComponentCollector({ time: 60000 });
 
         collector.on('collect', async i => {
+            if (i.customId !== 'select_vip') return;
+
             const vipRoles = {
-                vip_prata: { id: '1389915201641512960', price: 80000, name: '🥈 VIP Prata' },
-                vip_ouro: { id: '1389915441157115934', price: 120000, name: '🥇 VIP Ouro' },
-                vip_diamante: { id: '1389915552084004884', price: 200000, name: '💎 VIP Diamante' }
+                prata: { id: '1389915201641512960', price: 80000, name: '🥈 VIP Prata' },
+                ouro: { id: '1389915441157115934', price: 120000, name: '🥇 VIP Ouro' },
+                diamante: { id: '1389915552084004884', price: 200000, name: '💎 VIP Diamante' }
             };
 
-            const vip = vipRoles[i.customId];
+            const choice = i.values[0];
+            const vip = vipRoles[choice];
             if (!vip) return;
 
             const filePath = path.join(__dirname, '../../economy.json');
