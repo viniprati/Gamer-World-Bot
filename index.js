@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const { token, prefix } = require('./config.json');
 
+// ===== Sorteios =====
+const { handleMessage, scheduleGiveaway } = require("./commands/basic/sorteios.js");
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -52,6 +55,7 @@ const cooldowns = new Collection();
 // ===== Quando ligar =====
 client.once('ready', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
+    scheduleGiveaway(client); // inicia agendamento dos sorteios
 });
 
 // ===== Mensagens =====
@@ -61,6 +65,9 @@ client.on('messageCreate', async message => {
     const userId = message.author.id;
     const now = Date.now();
     const cooldownAmount = 3000;
+
+    // ===== Registrar mensagens para sorteio =====
+    handleMessage(message);
 
     // ===== Anti-Flood (economia) =====
     if (!cooldowns.has(userId)) {

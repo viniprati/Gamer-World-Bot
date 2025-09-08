@@ -8,7 +8,7 @@ const cooldown = new Map();
 
 // === Contador de mensagens com antiflood ===
 function handleMessage(message) {
-  if (message.author.bot) return;
+  if (!message || message.author?.bot) return;
 
   const userId = message.author.id;
   const now = Date.now();
@@ -27,7 +27,7 @@ function getMillisecondsTo(hour, minute = 0) {
   const now = new Date();
   const target = new Date();
   target.setHours(hour, minute, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1); // próximo dia
+  if (target <= now) target.setDate(target.getDate() + 1);
   return target - now;
 }
 
@@ -44,7 +44,6 @@ async function startGiveaway(client) {
 
   await channel.send({ embeds: [embed] });
 
-  // Resetar contagem
   messages = {};
   fs.writeFileSync(msgPath, JSON.stringify(messages, null, 2));
 
@@ -85,7 +84,6 @@ async function endGiveaway(client) {
 
   await channel.send({ embeds: [embed] });
 
-  // Resetar contagem
   messages = {};
   fs.writeFileSync(msgPath, JSON.stringify(messages, null, 2));
 
@@ -94,16 +92,22 @@ async function endGiveaway(client) {
 
 // === Agendamento automático usando setTimeout ===
 function scheduleGiveaway(client) {
-  const startIn = getMillisecondsTo(7, 0); // 07:00
-  const endIn = getMillisecondsTo(21, 0);  // 21:00
+  const startIn = getMillisecondsTo(7, 0);
+  const endIn = getMillisecondsTo(21, 0);
 
   setTimeout(async function start() {
     await startGiveaway(client);
     setTimeout(async function end() {
       await endGiveaway(client);
-      scheduleGiveaway(client); // agendar para o próximo dia
-    }, 14 * 60 * 60 * 1000); // 14h entre 7h e 21h
+      scheduleGiveaway(client);
+    }, 14 * 60 * 60 * 1000);
   }, startIn);
 }
 
-module.exports = { handleMessage, scheduleGiveaway };
+module.exports = {
+  handleMessage,
+  scheduleGiveaway,
+  registrarMensagem: handleMessage,
+  startGiveaway,
+  endGiveaway
+};
