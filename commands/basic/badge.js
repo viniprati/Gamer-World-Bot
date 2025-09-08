@@ -4,7 +4,7 @@ const path = require('path');
 module.exports.getBadges = (member, userData = {}, topRanking = 0) => {
     const badges = [];
 
-    // Staff (apenas uma insígnia de staff)
+    // Staff (apenas uma insígnia)
     const staffRoles = [
         '1388277190973722655', // Fundador
         '1388277351548194847', // Admin
@@ -28,44 +28,39 @@ module.exports.getBadges = (member, userData = {}, topRanking = 0) => {
         if (member.roles.cache.has(id)) badges.push(`💎 VIP ${name.charAt(0).toUpperCase() + name.slice(1)}`);
     }
 
-    // GamerDaily - já resgatou daily
+    // GamerDaily
     if (userData.daily) badges.push('🎯 GamerDaily');
 
-    // Veterano - 6 meses no servidor
+    // Veterano - 6 meses
     if (member.joinedAt && (Date.now() - member.joinedAt.getTime() >= 1000 * 60 * 60 * 24 * 30 * 6)) {
         badges.push('🏅 Veterano do GamerWorld');
     }
 
-    // Profissional - 1 ano no servidor
+    // Profissional - 1 ano
     if (member.joinedAt && (Date.now() - member.joinedAt.getTime() >= 1000 * 60 * 60 * 24 * 365)) {
         badges.push('🎖️ Profissional do GamerWorld');
     }
 
-    // Magnata - top 3 do ranking
+    // Magnata - top 3
     if (topRanking > 0 && topRanking <= 3) badges.push('💰 Magnata');
 
-    // Usuário da GamerWorld - usou algum comando
+    // Usuário da GamerWorld
     if (userData.usedCommands) badges.push('🧩 Usuário da GamerWorld');
 
-    // Doador de GameCoins - doou para alguém
+    // Doador de GameCoins
     if (userData.donated) badges.push('🎁 Doador de GameCoins');
 
-    // Milionário das GameCoins - >= 1M moedas
+    // Milionário - >= 1M moedas
     if (userData.balance >= 1_000_000) badges.push('💵 Milionário das GameCoins');
 
-    // Apoiador - deu sugestão aceita
+    // Apoiador - sugestão aceita
     if (userData.suggestionAccepted) badges.push('💡 Apoiador');
 
-    // Ajudantes - participou desde o início
+    // Ajudantes - early contributor
     if (userData.earlyContributor) badges.push('🤝 Ajudantes');
 
-    // Gemado/Pagante - comprou todos os VIPs
-    if (vipRoles.prata && vipRoles.ouro && vipRoles.diamante &&
-        vipRoles.prata && vipRoles.ouro && vipRoles.diamante) { // aqui precisa verificar se o usuário tem todos os cargos VIP
-        if (member.roles.cache.has(vipRoles.prata) && member.roles.cache.has(vipRoles.ouro) && member.roles.cache.has(vipRoles.diamante)) {
-            badges.push('💎 Gemado/Pagante');
-        }
-    }
+    // Gemado/Pagante - todos VIPs
+    if (Object.values(vipRoles).every(id => member.roles.cache.has(id))) badges.push('💎 Gemado/Pagante');
 
     // Fidelidade de alto nível - concluiu tudo
     if (userData.completedAll) badges.push('🏆 Fidelidade de Alto Nível');
@@ -73,10 +68,18 @@ module.exports.getBadges = (member, userData = {}, topRanking = 0) => {
     // Criador do bot
     if (member.id === 'ID_DO_CRIOADOR') badges.push('👑 Criador');
 
-    // Do top ninguém me tira! - top 1 por uma semana
-    if (topRanking === 1 && userData.topOneWeek) badges.push('🥇 Do top ninguém me tira!');
+    // Do top ninguém me tira! - top 1 por 7 dias
+    const top1Path = path.join(__dirname, '../../top1.json');
+    if (fs.existsSync(top1Path)) {
+        const top1Data = JSON.parse(fs.readFileSync(top1Path, 'utf8'));
+        if (top1Data.topUserId === member.id) {
+            const top1Date = new Date(top1Data.top1Start);
+            const diffDays = (Date.now() - top1Date.getTime()) / (1000 * 60 * 60 * 24);
+            if (diffDays >= 7) badges.push('🥇 Do top ninguém me tira!');
+        }
+    }
 
-    // Bilionário das GameCoins - >= 1B moedas
+    // Bilionário - >= 1B moedas
     if (userData.balance >= 1_000_000_000) badges.push('💎 Bilionário das GameCoins');
 
     return badges.length > 0 ? badges.join(' | ') : 'Nenhuma';
