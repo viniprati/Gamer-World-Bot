@@ -1,35 +1,83 @@
-module.exports.getBadges = (member) => {
+const fs = require('fs');
+const path = require('path');
+
+module.exports.getBadges = (member, userData = {}, topRanking = 0) => {
     const badges = [];
 
-    // Staff
-    const staffRoles = {
-        fundador: '1388277190973722655',
-        admin: '1388277351548194847',
-        coordenador: '1388277425703616745',
-        moderador: '1388277461560721438',
-        ajudante: '1388277465029283931'
-    };
+    // Staff (apenas uma insígnia de staff)
+    const staffRoles = [
+        '1388277190973722655', // Fundador
+        '1388277351548194847', // Admin
+        '1388277425703616745', // Coordenador
+        '1388277461560721438', // Moderador
+        '1388277465029283931', // Ajudante
+    ];
+    if (staffRoles.some(id => member.roles.cache.has(id))) badges.push('🛡️ Staff');
 
-    if (member.roles.cache.has(staffRoles.fundador)) badges.push('👑 **Fundador**');
-    if (member.roles.cache.has(staffRoles.admin)) badges.push('🛡️ **Admin**');
-    if (member.roles.cache.has(staffRoles.coordenador)) badges.push('🎯 **Coordenador**');
-    if (member.roles.cache.has(staffRoles.moderador)) badges.push('🔨 **Moderador**');
-    if (member.roles.cache.has(staffRoles.ajudante)) badges.push('🤝 **Ajudante**');
+    // Apoiador Inicial
+    const apoiadorId = '1396916524551372800';
+    if (member.roles.cache.has(apoiadorId)) badges.push('🎖️ Apoiador Inicial');
 
     // VIPs
     const vipRoles = {
-        diamante: '1389915552084004884',
+        prata: '1389915201641512960',
         ouro: '1389915441157115934',
-        prata: '1389915201641512960'
+        diamante: '1389915552084004884',
     };
+    for (const [name, id] of Object.entries(vipRoles)) {
+        if (member.roles.cache.has(id)) badges.push(`💎 VIP ${name.charAt(0).toUpperCase() + name.slice(1)}`);
+    }
 
-    if (member.roles.cache.has(vipRoles.diamante)) badges.push('💎 **VIP Diamante**');
-    else if (member.roles.cache.has(vipRoles.ouro)) badges.push('🥇 **VIP Ouro**');
-    else if (member.roles.cache.has(vipRoles.prata)) badges.push('🥈 **VIP Prata**');
+    // GamerDaily - já resgatou daily
+    if (userData.daily) badges.push('🎯 GamerDaily');
 
-    // Todos recebem a insígnia de apoiador inicial
-    badges.push('⭐ **Apoiador Inicial**');
+    // Veterano - 6 meses no servidor
+    if (member.joinedAt && (Date.now() - member.joinedAt.getTime() >= 1000 * 60 * 60 * 24 * 30 * 6)) {
+        badges.push('🏅 Veterano do GamerWorld');
+    }
 
-    // Retorna cada insígnia em uma linha
-    return badges.length ? badges.map(b => `• ${b}`).join('\n') : 'Nenhuma';
+    // Profissional - 1 ano no servidor
+    if (member.joinedAt && (Date.now() - member.joinedAt.getTime() >= 1000 * 60 * 60 * 24 * 365)) {
+        badges.push('🎖️ Profissional do GamerWorld');
+    }
+
+    // Magnata - top 3 do ranking
+    if (topRanking > 0 && topRanking <= 3) badges.push('💰 Magnata');
+
+    // Usuário da GamerWorld - usou algum comando
+    if (userData.usedCommands) badges.push('🧩 Usuário da GamerWorld');
+
+    // Doador de GameCoins - doou para alguém
+    if (userData.donated) badges.push('🎁 Doador de GameCoins');
+
+    // Milionário das GameCoins - >= 1M moedas
+    if (userData.balance >= 1_000_000) badges.push('💵 Milionário das GameCoins');
+
+    // Apoiador - deu sugestão aceita
+    if (userData.suggestionAccepted) badges.push('💡 Apoiador');
+
+    // Ajudantes - participou desde o início
+    if (userData.earlyContributor) badges.push('🤝 Ajudantes');
+
+    // Gemado/Pagante - comprou todos os VIPs
+    if (vipRoles.prata && vipRoles.ouro && vipRoles.diamante &&
+        vipRoles.prata && vipRoles.ouro && vipRoles.diamante) { // aqui precisa verificar se o usuário tem todos os cargos VIP
+        if (member.roles.cache.has(vipRoles.prata) && member.roles.cache.has(vipRoles.ouro) && member.roles.cache.has(vipRoles.diamante)) {
+            badges.push('💎 Gemado/Pagante');
+        }
+    }
+
+    // Fidelidade de alto nível - concluiu tudo
+    if (userData.completedAll) badges.push('🏆 Fidelidade de Alto Nível');
+
+    // Criador do bot
+    if (member.id === 'ID_DO_CRIOADOR') badges.push('👑 Criador');
+
+    // Do top ninguém me tira! - top 1 por uma semana
+    if (topRanking === 1 && userData.topOneWeek) badges.push('🥇 Do top ninguém me tira!');
+
+    // Bilionário das GameCoins - >= 1B moedas
+    if (userData.balance >= 1_000_000_000) badges.push('💎 Bilionário das GameCoins');
+
+    return badges.length > 0 ? badges.join(' | ') : 'Nenhuma';
 };
