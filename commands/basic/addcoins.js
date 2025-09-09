@@ -8,7 +8,7 @@ module.exports = {
         // IDs autorizados
         const allowedUsers = [
             '1077723832036630528', // Dago
-            '983870132063453235', // Prati (dono)
+            '983870132063453235', // Prati
             '820041555443449856', // Gb
             '1109255544495145021' // Prince
         ];
