@@ -3,16 +3,15 @@ const fs = require('fs');
 const path = require('path');
 const { token, prefix } = require('./config.json');
 
-// ===== Sorteios =====
-const { handleMessage, scheduleGiveaway } = require("./commands/basic/sorteios.js");
-
+// ===== Criar client =====
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
     ],
-    partials: [Partials.Channel]
+    partials: [Partials.Channel, Partials.Message, Partials.User]
 });
 
 client.commands = new Collection();
@@ -27,11 +26,11 @@ for (const folder of commandFolders) {
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
         for (const file of commandFiles) {
             const command = require(path.join(folderPath, file));
-            client.commands.set(command.name, command);
+            if (command.name) client.commands.set(command.name, command);
         }
     } else if (folder.endsWith('.js')) {
         const command = require(path.join(__dirname, 'commands', folder));
-        client.commands.set(command.name, command);
+        if (command.name) client.commands.set(command.name, command);
     }
 }
 
@@ -55,7 +54,7 @@ const cooldowns = new Collection();
 // ===== Quando ligar =====
 client.once('ready', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
-    scheduleGiveaway(client); // inicia agendamento dos sorteios
+    if (typeof scheduleGiveaway === 'function') scheduleGiveaway(client);
 });
 
 // ===== Mensagens =====
@@ -67,7 +66,7 @@ client.on('messageCreate', async message => {
     const cooldownAmount = 3000;
 
     // ===== Registrar mensagens para sorteio =====
-    handleMessage(message);
+    if (typeof handleMessage === 'function') handleMessage(message);
 
     // ===== Anti-Flood (economia) =====
     if (!cooldowns.has(userId)) {

@@ -1,15 +1,66 @@
+// commands/basic/loja.js
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+
+const ECONOMY_PATH = path.join(__dirname, '../../economy.json'); // ajuste se necessário
+const VIPS_PATH = path.join(__dirname, '../../vips.json');
+
+function loadJsonSafe(filePath, fallback) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2));
+            return fallback;
+        }
+        const raw = fs.readFileSync(filePath, 'utf8');
+        return raw ? JSON.parse(raw) : fallback;
+    } catch (err) {
+        console.error('Erro ao ler/criar JSON:', filePath, err);
+        return fallback;
+    }
+}
+
+function saveJsonSafe(filePath, data) {
+    try {
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    } catch (err) {
+        console.error('Erro ao salvar JSON:', filePath, err);
+    }
+}
+
+// Compatibilidade: detecta se economy[userId] é number (antes) ou objeto { balance: N }
+function getBalance(economy, userId) {
+    const entry = economy[userId];
+    if (entry === undefined) return 0;
+    if (typeof entry === 'number') return entry;
+    if (entry && typeof entry.balance === 'number') return entry.balance;
+    return 0;
+}
+function setBalance(economy, userId, newBalance) {
+    const entry = economy[userId];
+    if (entry === undefined) {
+        // mantém o formato simples (número) para compatibilidade antiga
+        economy[userId] = newBalance;
+        return;
+    }
+    if (typeof entry === 'number') {
+        economy[userId] = newBalance;
+        return;
+    }
+    // objeto
+    entry.balance = newBalance;
+    economy[userId] = entry;
+}
 
 module.exports = {
     name: 'loja',
     description: 'Mostra a loja de VIPs e permite comprar pelo menu.',
     async execute(message, args, client) {
+        // Embeds/menu
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🏪 Loja de VIPs')
-            .setDescription('Selecione abaixo o VIP que deseja comprar.\nVocê precisa ter moedas suficientes.')
+            .setDescription('Selecione abaixo o VIP que deseja comprar. Você precisa ter moedas suficientes.')
             .addFields(
                 { name: '💎 VIP Diamante — 200000 moedas', value: 'Benefícios: +2 VIP Ouro, XP 2.5x, pay 10h, 7 sorteios', inline: false },
                 { name: '🥇 VIP Ouro — 120000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
@@ -27,10 +78,10 @@ module.exports = {
             );
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
-
         const msg = await message.channel.send({ embeds: [embed], components: [row] });
 
-        const collector = msg.createMessageComponentCollector({ time: 60000 });
+        // collector aberto para qualquer usuário interagir (pode ajustar filtro se quiser)
+        const collector = msg.createMessageComponentCollector({ time: 5 * 60 * 1000 }); // 5 minutos
 
         collector.on('collect', async i => {
             if (i.customId !== 'select_vip') return;
@@ -43,32 +94,70 @@ module.exports = {
 
             const choice = i.values[0];
             const vip = vipRoles[choice];
-            if (!vip) return;
-
-            const filePath = path.join(__dirname, '../../economy.json');
-            let data = {};
-            if (fs.existsSync(filePath)) data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-
-            const userId = i.user.id;
-            if (!data[userId]) data[userId] = 0;
-
-            if (data[userId] < vip.price) {
-                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}.`, ephemeral: true });
+            if (!vip) {
+                return i.reply({ content: 'Opção inválida.', ephemeral: true });
             }
 
-            data[userId] -= vip.price;
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+            // carrega economy (compatível com formatos antigos/novos)
+            const economy = loadJsonSafe(ECONOMY_PATH, {});
+            const userId = i.user.id;
+            const balance = getBalance(economy, userId);
 
-            const member = await message.guild.members.fetch(userId);
-            const role = message.guild.roles.cache.get(vip.id);
+            if (balance < vip.price) {
+                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}. (Saldo: ${balance})`, ephemeral: true });
+            }
+
+            // subtrai e salva
+            const newBalance = balance - vip.price;
+            setBalance(economy, userId, newBalance);
+            saveJsonSafe(ECONOMY_PATH, economy);
+
+            // aplica cargo
+            const guild = message.guild;
+            let member;
+            try {
+                member = await guild.members.fetch(userId);
+            } catch (err) {
+                console.error('Erro ao buscar membro:', err);
+                return i.reply({ content: '❌ Não consegui buscar seu membro no servidor.', ephemeral: true });
+            }
+
+            const role = guild.roles.cache.get(vip.id);
             if (!role) return i.reply({ content: '❌ Cargo VIP não encontrado no servidor.', ephemeral: true });
 
-            await member.roles.add(role);
-            i.reply({ content: `✅ Parabéns! Você comprou ${vip.name} por **${vip.price} moedas** 🎉`, ephemeral: true });
+            try {
+                await member.roles.add(role);
+            } catch (err) {
+                console.error('Erro adicionando cargo VIP:', err);
+                return i.reply({ content: '❌ Falha ao adicionar o cargo. Verifique minhas permissões.', ephemeral: true });
+            }
+
+            // salva/atualiza vips.json
+            const vips = loadJsonSafe(VIPS_PATH, []);
+            const now = Date.now();
+            const monthMs = 30 * 24 * 60 * 60 * 1000;
+            const existingIndex = vips.findIndex(e => e.userId === userId && e.guildId === guild.id && e.roleId === vip.id);
+
+            let expiresAt;
+            if (existingIndex !== -1) {
+                // estende: se ainda tem tempo restante, acrescenta 30 dias a partir do fim; se expirou, a partir de agora
+                const existing = vips[existingIndex];
+                const base = Math.max(existing.expiresAt || 0, now);
+                expiresAt = base + monthMs;
+                vips[existingIndex].expiresAt = expiresAt;
+            } else {
+                expiresAt = now + monthMs;
+                vips.push({ userId, guildId: guild.id, roleId: vip.id, expiresAt });
+            }
+
+            saveJsonSafe(VIPS_PATH, vips);
+
+            const expiresDate = new Date(expiresAt).toLocaleString('pt-BR');
+            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price} moedas**.\n💰 Saldo restante: **${newBalance}**.\n⏳ VIP expira em: **${expiresDate}**.`, ephemeral: true });
         });
 
         collector.on('end', () => {
-            msg.edit({ components: [] });
+            try { msg.edit({ components: [] }); } catch (e) { /* ignore */ }
         });
     },
 };
