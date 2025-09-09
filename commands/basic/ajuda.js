@@ -16,7 +16,7 @@ module.exports = {
         const commandsPath = path.join(__dirname, '../../commands');
         const commandFolders = fs.readdirSync(commandsPath);
 
-        const fields = []; // array seguro para addFields
+        const fields = [];
 
         for (const folder of commandFolders) {
             const folderPath = path.join(commandsPath, folder);
@@ -24,21 +24,27 @@ module.exports = {
             if (!fs.lstatSync(folderPath).isDirectory()) continue;
 
             const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-
             if (commandFiles.length === 0) continue;
 
             let commandsInFolder = '';
 
             for (const file of commandFiles) {
-                const command = require(path.join(folderPath, file));
-                const name = command.name || path.parse(file).name;
-                const desc = command.description || 'Sem descrição';
-                commandsInFolder += `\`!${name}\` - ${desc}\n`;
+                try {
+                    const command = require(path.join(folderPath, file));
+
+                    // Verifica se existe name e description válidos
+                    const name = command?.name ? `!${command.name}` : null;
+                    const desc = command?.description || 'Sem descrição';
+
+                    if (name) commandsInFolder += `\`${name}\` - ${desc}\n`;
+                } catch {
+                    continue; // ignora qualquer comando inválido
+                }
             }
 
             if (!commandsInFolder.trim()) commandsInFolder = 'Nenhum comando disponível.';
 
-            // Adiciona ao array, sem chamar addFields diretamente
+            // Só adiciona campos válidos
             fields.push({
                 name: `📂 ${folder.charAt(0).toUpperCase() + folder.slice(1)} Comandos`,
                 value: commandsInFolder,
@@ -46,12 +52,9 @@ module.exports = {
             });
         }
 
-        // Só adiciona os campos se houver algum
-        if (fields.length > 0) {
-            embed.addFields(fields);
-        } else {
-            embed.setDescription('Nenhum comando encontrado.');
-        }
+        // Garante que fields não esteja vazio
+        if (fields.length > 0) embed.addFields(fields);
+        else embed.setDescription('Nenhum comando encontrado.');
 
         await message.channel.send({ embeds: [embed] });
     },

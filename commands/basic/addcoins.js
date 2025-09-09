@@ -3,10 +3,17 @@ const path = require('path');
 
 module.exports = {
     name: 'addcoins',
-    description: 'Adiciona moedas a um usuário (somente admins).',
+    description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
     async execute(message, args, client) {
-        // Verifica se o usuário tem permissão de admin
-        if (!message.member.permissions.has('Administrator')) {
+        // IDs autorizados
+        const allowedUsers = [
+            '1077723832036630528', // Dago
+            '983870132063453235', // Prati (dono)
+            '820041555443449856', // Gb
+            '1109255544495145021' // Prince
+        ];
+
+        if (!allowedUsers.includes(message.author.id)) {
             return message.reply('❌ Você não tem permissão para usar este comando.');
         }
 
@@ -25,6 +32,8 @@ module.exports = {
 
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
-        message.reply(`✅ Adicionadas ${amount} moedas para ${target.user.tag}.`);
+        message.reply(
+            `✅ Adicionadas **${amount} moedas** para ${target.user.tag}. Agora ele tem **${data[target.id]} moedas**.`
+        );
     },
 };
