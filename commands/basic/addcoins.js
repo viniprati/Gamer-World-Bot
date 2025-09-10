@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const { sendLog } = require('../logger.js'); // importa o logger
 
 module.exports = {
     name: 'addcoins',
     description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
     async execute(message, args, client) {
-        // IDs autorizados
         const allowedUsers = [
             '1077723832036630528', // Dago
             '983870132063453235', // Prati
@@ -31,6 +31,9 @@ module.exports = {
         data[target.id] += amount;
 
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+        // Log no servidor de logs
+        sendLog(client, "economy", { userId: target.id, amount: data[target.id] });
 
         message.reply(
             `✅ Adicionadas **${amount} moedas** para ${target.user.tag}. Agora ele tem **${data[target.id]} moedas**.`
