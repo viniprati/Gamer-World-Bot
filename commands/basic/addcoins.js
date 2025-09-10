@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { sendLog } = require('../logger.js'); // importa o logger
+const { sendLog } = require('../../logger');
 
 module.exports = {
     name: 'addcoins',
