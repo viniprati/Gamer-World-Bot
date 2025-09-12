@@ -9,7 +9,8 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences
     ],
     partials: [Partials.Channel, Partials.Message, Partials.User]
 });
@@ -55,9 +56,11 @@ client.economy = { loadEconomy, saveEconomy };
 const cooldowns = new Collection();
 
 // ===== Quando ligar =====
+// CORREÇÃO: Alterado de 'ready' para 'clientReady' para remover o aviso.
 client.once('clientReady', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
-    if (typeof scheduleGiveaway === 'function') scheduleGiveaway(client);
+    // A lógica de giveaway precisa ser importada e definida para funcionar
+    // if (typeof scheduleGiveaway === 'function') scheduleGiveaway(client); 
 });
 
 // ===== Mensagens =====
@@ -69,7 +72,8 @@ client.on('messageCreate', async message => {
     const cooldownAmount = 3000;
 
     // ===== Registrar mensagens para sorteio =====
-    if (typeof handleMessage === 'function') handleMessage(message);
+    // A lógica de sorteio precisa ser importada e definida para funcionar
+    // if (typeof handleMessage === 'function') handleMessage(message);
 
     // ===== Anti-Flood (economia) =====
     if (!cooldowns.has(userId)) {
@@ -77,10 +81,13 @@ client.on('messageCreate', async message => {
         setTimeout(() => cooldowns.delete(userId), cooldownAmount);
 
         let data = client.economy.loadEconomy();
+        // Garante que o usuário tenha um campo 'balance'
+        if (!data[userId] || typeof data[userId].balance === 'undefined') {
+            if (!data[userId]) data[userId] = {};
+            data[userId].balance = 0;
+        }
         const amount = Math.floor(Math.random() * 5) + 1;
-
-        if (!data[userId]) data[userId] = 0;
-        data[userId] += amount;
+        data[userId].balance += amount;
 
         client.economy.saveEconomy(data);
     }

@@ -5,8 +5,9 @@ const path = require('path');
 const ECONOMY_PATH = path.join(__dirname, '../../economy.json');
 const VIPS_PATH = path.join(__dirname, '../../vips.json');
 
-const { sendLog } = require('../../logger'); // logger integrado
+const { sendLog } = require('../../logger');
 
+// Funções de leitura/escrita de JSON (mantidas como estão)
 function loadJsonSafe(filePath, fallback) {
     try {
         if (!fs.existsSync(filePath)) {
@@ -29,6 +30,7 @@ function saveJsonSafe(filePath, data) {
     }
 }
 
+// Funções de economia (mantidas como estão)
 function getBalance(economy, userId) {
     const entry = economy[userId];
     if (entry === undefined) return 0;
@@ -40,21 +42,23 @@ function getBalance(economy, userId) {
 function setBalance(economy, userId, newBalance) {
     const entry = economy[userId];
     if (entry === undefined) {
-        economy[userId] = newBalance;
+        economy[userId] = { balance: newBalance };
         return;
     }
     if (typeof entry === 'number') {
-        economy[userId] = newBalance;
+        economy[userId] = { balance: newBalance };
         return;
     }
     entry.balance = newBalance;
     economy[userId] = entry;
 }
 
+
 module.exports = {
     name: 'loja',
     description: 'Mostra a loja de VIPs e permite comprar pelo menu.',
     async execute(message, args, client) {
+        // ... (código da criação do embed e do menu, sem alterações) ...
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🏪 Loja de VIPs')
@@ -106,18 +110,28 @@ module.exports = {
             saveJsonSafe(ECONOMY_PATH, economy);
 
             const guild = message.guild;
-            let member;
-            try { member = await guild.members.fetch(userId); } 
-            catch (err) { return i.reply({ content: '❌ Não consegui buscar seu membro.', ephemeral: true }); }
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (!member) {
+                return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', ephemeral: true });
+            }
 
             const role = guild.roles.cache.get(vip.id);
-            if (!role) return i.reply({ content: '❌ Cargo VIP não encontrado.', ephemeral: true });
+            if (!role) return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', ephemeral: true });
 
-            try { await member.roles.add(role); } 
-            catch (err) { return i.reply({ content: '❌ Falha ao adicionar o cargo.', ephemeral: true }); }
+            await member.roles.add(role).catch(err => {
+                console.error("Erro ao adicionar cargo VIP:", err);
+                return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', ephemeral: true });
+            });
 
             // salva/atualiza vips.json
-            const vips = loadJsonSafe(VIPS_PATH, []);
+            let vips = loadJsonSafe(VIPS_PATH, []);
+
+            // ADICIONADO: Verificação para garantir que 'vips' é um array. Se não for, reseta para um array vazio.
+            if (!Array.isArray(vips)) {
+                console.warn(`[LOJA] O arquivo vips.json não continha um array. Resetando para [].`);
+                vips = [];
+            }
+            
             const now = Date.now();
             const monthMs = 30 * 24 * 60 * 60 * 1000;
             const existingIndex = vips.findIndex(e => e.userId === userId && e.guildId === guild.id && e.roleId === vip.id);
@@ -135,7 +149,6 @@ module.exports = {
 
             saveJsonSafe(VIPS_PATH, vips);
 
-            // **LOGGER**
             sendLog(client, "vip", { userId, vipName: vip.name });
 
             const expiresDate = new Date(expiresAt).toLocaleString('pt-BR');
@@ -143,7 +156,7 @@ module.exports = {
         });
 
         collector.on('end', () => {
-            try { msg.edit({ components: [] }); } catch (e) { }
+            msg.edit({ components: [] }).catch(() => {});
         });
     },
 };
