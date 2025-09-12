@@ -3,7 +3,7 @@ const path = require('path');
 const { sendLog } = require('../../logger');
 
 const ECONOMY_PATH = path.join(__dirname, '..', 'economy.json');
-let changeCounter = 0; // contador global de alterações
+let changeCounter = 0;
 
 module.exports = {
     name: 'addcoins',
@@ -35,9 +35,13 @@ module.exports = {
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(data, null, 2));
 
         // Log resumido no servidor
-        sendLog(client, "economy", { userId: target.id, amount: data[target.id] });
+        sendLog(client, "economy", { 
+            userId: target.id, 
+            received: amount, 
+            amount: data[target.id] 
+        });
 
-        // Incrementa contador e envia backup a cada 20 alterações
+        // Backup automático
         changeCounter++;
         if (changeCounter >= 20) {
             const guild = client.guilds.cache.get("1251297674058137751");
