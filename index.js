@@ -2,7 +2,6 @@ const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js'
 const fs = require('fs');
 const path = require('path');
 const { token, prefix } = require('./config.json');
-const db = require('./database'); // banco SQLite
 
 // ===== Criar client =====
 const client = new Client({
@@ -17,7 +16,7 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// ===== Carregar comandos =====
+// ===== Carregar comandos (diretos e em subpastas) =====
 const commandFolders = fs.readdirSync(path.join(__dirname, 'commands'));
 
 for (const folder of commandFolders) {
@@ -25,6 +24,7 @@ for (const folder of commandFolders) {
 
     if (fs.lstatSync(folderPath).isDirectory()) {
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+
         for (const file of commandFiles) {
             const command = require(path.join(folderPath, file));
             if (command.name) client.commands.set(command.name, command);
@@ -35,10 +35,27 @@ for (const folder of commandFolders) {
     }
 }
 
+// ===== Economia =====
+const economyFile = path.join(__dirname, 'economy.json');
+
+if (!fs.existsSync(economyFile)) {
+    fs.writeFileSync(economyFile, JSON.stringify({}, null, 2));
+}
+
+function loadEconomy() {
+    return JSON.parse(fs.readFileSync(economyFile, 'utf8'));
+}
+
+function saveEconomy(data) {
+    fs.writeFileSync(economyFile, JSON.stringify(data, null, 2));
+}
+
+client.economy = { loadEconomy, saveEconomy };
+
 const cooldowns = new Collection();
 
 // ===== Quando ligar =====
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
     if (typeof scheduleGiveaway === 'function') scheduleGiveaway(client);
 });
@@ -59,17 +76,13 @@ client.on('messageCreate', async message => {
         cooldowns.set(userId, now);
         setTimeout(() => cooldowns.delete(userId), cooldownAmount);
 
+        let data = client.economy.loadEconomy();
         const amount = Math.floor(Math.random() * 5) + 1;
 
-        // Pega saldo atual
-        let row = db.prepare("SELECT coins FROM economy WHERE userId = ?").get(userId);
-        const balance = row ? row.coins + amount : amount;
+        if (!data[userId]) data[userId] = 0;
+        data[userId] += amount;
 
-        // Atualiza ou insere saldo
-        db.prepare(`
-            INSERT INTO economy (userId, coins) VALUES (?, ?)
-            ON CONFLICT(userId) DO UPDATE SET coins = ?
-        `).run(userId, balance, balance);
+        client.economy.saveEconomy(data);
     }
 
     // ===== Comandos =====
