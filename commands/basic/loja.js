@@ -29,17 +29,6 @@ function saveJsonSafe(filePath, data) {
     }
 }
 
-// Funções de economia (REVERTIDAS PARA O SISTEMA ANTIGO/SIMPLES)
-function getBalance(economy, userId) {
-    // Lê o saldo como um número diretamente.
-    return economy[userId] || 0;
-}
-
-function setBalance(economy, userId, newBalance) {
-    // Salva o saldo como um número diretamente.
-    economy[userId] = newBalance;
-}
-
 
 module.exports = {
     name: 'loja',
@@ -86,14 +75,21 @@ module.exports = {
 
             const economy = loadJsonSafe(ECONOMY_PATH, {});
             const userId = i.user.id;
-            const balance = getBalance(economy, userId);
+            const userData = economy[userId];
+
+            // A CORREÇÃO DEFINITIVA: LÓGICA DE LEITURA INTELIGENTE
+            // Garante que 'balance' será sempre um número, não importa o que esteja no JSON.
+            const balance = (userData && userData.balance) || userData || 0;
 
             if (balance < vip.price) {
-                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}. (Saldo: ${balance.toLocaleString('pt-BR')})`, flags: [MessageFlags.Ephemeral] });
+                return i.reply({ content: `❌ Você não tem moedas suficientes. (Saldo: ${balance.toLocaleString('pt-BR')})`, flags: [MessageFlags.Ephemeral] });
             }
 
+            // A matemática agora é segura
             const newBalance = balance - vip.price;
-            setBalance(economy, userId, newBalance);
+            
+            // Salva sempre como um número simples, mantendo o sistema revertido
+            economy[userId] = newBalance;
             saveJsonSafe(ECONOMY_PATH, economy);
 
             const guild = message.guild;
