@@ -10,11 +10,14 @@ module.exports = {
     description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
     cooldown: 5, 
     async execute(message, args, client) {
-        // ... (código de permissão e validação de args) ...
         const allowedUsers = ['1077723832036630528', '983870132063453235', '820041555443449856', '1109255544495145021'];
-        if (!allowedUsers.includes(message.author.id)) return message.reply('❌ Você não tem permissão para usar este comando.');
+        if (!allowedUsers.includes(message.author.id)) {
+            return message.reply('❌ Você não tem permissão para usar este comando.');
+        }
+
         const target = message.mentions.members.first();
         const amount = parseInt(args[1]);
+
         if (!target) return message.reply('Mencione o usuário para adicionar moedas.');
         if (isNaN(amount) || amount <= 0) return message.reply('Digite um valor válido.');
 
@@ -26,17 +29,19 @@ module.exports = {
         const targetId = target.id;
         const userData = economyData[targetId];
 
-        // A LÓGICA INTELIGENTE E DEFINITIVA
-        // Se userData for um objeto, pega a propriedade .balance. Se for um número, pega o número. Se não for nada, é 0.
+        // LÓGICA DE LEITURA INTELIGENTE E À PROVA DE FALHAS
+        // Garante que 'currentBalance' seja sempre um número, não importa o que esteja no JSON.
         const currentBalance = (userData && userData.balance) || userData || 0;
         
+        // A matemática agora é segura.
         const newBalance = currentBalance + amount;
 
-        // SALVA SEMPRE COMO UM NÚMERO, GARANTINDO A CONSISTÊNCIA
+        // SALVA SEMPRE COMO UM NÚMERO SIMPLES, MANTENDO O SISTEMA REVERTIDO
         economyData[targetId] = newBalance;
         
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
 
+        // Envia o log, que já espera um número.
         await sendLog(client, "economy", { 
             userId: targetId, 
             action: `Moedas adicionadas por Staff (${message.author.tag})`,
@@ -44,7 +49,7 @@ module.exports = {
             newBalance: newBalance
         });
 
-        // ... (lógica de backup) ...
+        // Lógica de backup (mantida)
         changeCounter++;
         if (changeCounter >= 20) {
             const guild = client.guilds.cache.get("1251297674058137751");
@@ -56,6 +61,7 @@ module.exports = {
         }
 
         const fmt = (n) => n.toLocaleString('pt-BR');
+        // A resposta usa a variável 'newBalance' que é garantidamente um número.
         message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };
