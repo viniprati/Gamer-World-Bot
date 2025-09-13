@@ -10,14 +10,11 @@ module.exports = {
     description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
     cooldown: 5, 
     async execute(message, args, client) {
+        // ... (código de permissão e validação de args) ...
         const allowedUsers = ['1077723832036630528', '983870132063453235', '820041555443449856', '1109255544495145021'];
-        if (!allowedUsers.includes(message.author.id)) {
-            return message.reply('❌ Você não tem permissão para usar este comando.');
-        }
-
+        if (!allowedUsers.includes(message.author.id)) return message.reply('❌ Você não tem permissão para usar este comando.');
         const target = message.mentions.members.first();
         const amount = parseInt(args[1]);
-
         if (!target) return message.reply('Mencione o usuário para adicionar moedas.');
         if (isNaN(amount) || amount <= 0) return message.reply('Digite um valor válido.');
 
@@ -27,12 +24,15 @@ module.exports = {
         }
 
         const targetId = target.id;
+        const userData = economyData[targetId];
 
-        // LÓGICA 100% REVERTIDA: LÊ E SOMA NÚMEROS
-        const currentBalance = economyData[targetId] || 0;
+        // A LÓGICA INTELIGENTE E DEFINITIVA
+        // Se userData for um objeto, pega a propriedade .balance. Se for um número, pega o número. Se não for nada, é 0.
+        const currentBalance = (userData && userData.balance) || userData || 0;
+        
         const newBalance = currentBalance + amount;
 
-        // LÓGICA 100% REVERTIDA: SALVA O RESULTADO COMO UM NÚMERO
+        // SALVA SEMPRE COMO UM NÚMERO, GARANTINDO A CONSISTÊNCIA
         economyData[targetId] = newBalance;
         
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
@@ -44,7 +44,7 @@ module.exports = {
             newBalance: newBalance
         });
 
-        // Lógica de backup
+        // ... (lógica de backup) ...
         changeCounter++;
         if (changeCounter >= 20) {
             const guild = client.guilds.cache.get("1251297674058137751");
@@ -56,7 +56,6 @@ module.exports = {
         }
 
         const fmt = (n) => n.toLocaleString('pt-BR');
-        // A RESPOSTA USA A VARIÁVEL NUMÉRICA 'newBalance'
         message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };
