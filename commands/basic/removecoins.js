@@ -1,51 +1,53 @@
 const fs = require('fs');
 const path = require('path');
-const { sendLog } = require('../../logger');
+const { sendLog } = require('../../logger.js');
 
-const ECONOMY_PATH = path.join(__dirname, '..', 'economy.json');
-let changeCounter = 0; // contador global de alterações
+const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 
 module.exports = {
     name: 'removecoins',
-    description: 'Remove moedas de um usuário (somente admins).',
+    description: 'Remove moedas de um usuário (somente pessoas autorizadas).',
+    cooldown: 5, 
     async execute(message, args, client) {
-        if (!message.member.permissions.has('Administrator')) {
+        const allowedUsers = ['1077723832036630528', '983870132063453235', '820041555443449856', '1109255544495145021'];
+        if (!allowedUsers.includes(message.author.id)) {
             return message.reply('❌ Você não tem permissão para usar este comando.');
         }
 
         const target = message.mentions.members.first();
-        const amount = parseInt(args[1]);
+        const amountToRemove = parseInt(args[1]);
 
         if (!target) return message.reply('Mencione o usuário para remover moedas.');
-        if (!amount || amount <= 0) return message.reply('Digite um valor válido.');
+        if (isNaN(amountToRemove) || amountToRemove <= 0) return message.reply('Digite um valor válido.');
 
-        let data = {};
-        if (fs.existsSync(ECONOMY_PATH)) data = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
-
-        if (!data[target.id]) data[target.id] = 0;
-
-        data[target.id] -= amount;
-        if (data[target.id] < 0) data[target.id] = 0;
-
-        fs.writeFileSync(ECONOMY_PATH, JSON.stringify(data, null, 2));
-
-        // Log resumido
-        sendLog(client, "economy", { userId: target.id, amount: data[target.id] });
-
-        // Incrementa contador e envia backup a cada 20 alterações
-        changeCounter++;
-        if (changeCounter >= 20) {
-            const guild = client.guilds.cache.get("1251297674058137751");
-            const channel = guild?.channels.cache.get("1415447984778252390");
-            if (channel) {
-                channel.send({
-                    content: "📄 Backup do economy.json (20 alterações acumuladas)",
-                    files: [ECONOMY_PATH],
-                });
-            }
-            changeCounter = 0;
+        let economyData = {};
+        if (fs.existsSync(ECONOMY_PATH)) {
+            economyData = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
         }
 
-        message.reply(`✅ Removidas **${amount} moedas** de ${target.user.tag}. Agora ele tem **${data[target.id]} moedas**.`);
+        const targetId = target.id;
+
+        // REVERTIDO: Lê o saldo como um número simples
+        const currentBalance = economyData[targetId] || 0;
+
+        // Lógica para não deixar o saldo negativo
+        const newBalance = Math.max(0, currentBalance - amountToRemove);
+        const amountActuallyRemoved = currentBalance - newBalance;
+
+        // REVERTIDO: Salva o saldo como um número simples
+        economyData[targetId] = newBalance;
+        
+        fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
+
+        // Envia o log com os valores corretos
+        await sendLog(client, "economy", { 
+            userId: targetId, 
+            action: `Moedas removidas por Staff (${message.author.tag})`,
+            amount: amountActuallyRemoved, 
+            newBalance: newBalance
+        });
+
+        const fmt = (n) => n.toLocaleString('pt-BR');
+        message.reply(`✅ Removidas **${fmt(amountActuallyRemoved)} moedas** de ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };

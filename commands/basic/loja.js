@@ -1,14 +1,12 @@
-// ATUALIZADO: Adicionado 'MessageFlags' para a nova sintaxe de mensagens efêmeras
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
 const ECONOMY_PATH = path.join(__dirname, '../../economy.json');
 const VIPS_PATH = path.join(__dirname, '../../vips.json');
-
 const { sendLog } = require('../../logger');
 
-// Funções de leitura/escrita de JSON (mantidas como estão)
+// Funções de leitura/escrita de JSON (mantidas)
 function loadJsonSafe(filePath, fallback) {
     try {
         if (!fs.existsSync(filePath)) {
@@ -31,35 +29,23 @@ function saveJsonSafe(filePath, data) {
     }
 }
 
-// Funções de economia (mantidas como estão)
+// Funções de economia (REVERTIDAS PARA O SISTEMA ANTIGO/SIMPLES)
 function getBalance(economy, userId) {
-    const entry = economy[userId];
-    if (entry === undefined) return 0;
-    if (typeof entry === 'number') return entry;
-    if (entry && typeof entry.balance === 'number') return entry.balance;
-    return 0;
+    // Lê o saldo como um número diretamente.
+    return economy[userId] || 0;
 }
 
 function setBalance(economy, userId, newBalance) {
-    const entry = economy[userId];
-    if (entry === undefined) {
-        economy[userId] = { balance: newBalance };
-        return;
-    }
-    if (typeof entry === 'number') {
-        economy[userId] = { balance: newBalance };
-        return;
-    }
-    entry.balance = newBalance;
-    economy[userId] = entry;
+    // Salva o saldo como um número diretamente.
+    economy[userId] = newBalance;
 }
 
 
 module.exports = {
     name: 'loja',
     description: 'Mostra a loja de VIPs e permite comprar pelo menu.',
+    cooldown: 15, // Adicionado um cooldown para prevenir spam
     async execute(message, args, client) {
-        // ... (código da criação do embed e do menu, sem alterações) ...
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🏪 Loja de VIPs')
@@ -96,7 +82,6 @@ module.exports = {
 
             const choice = i.values[0];
             const vip = vipRoles[choice];
-            // CORRIGIDO: usa a sintaxe 'flags'
             if (!vip) return i.reply({ content: 'Opção inválida.', flags: [MessageFlags.Ephemeral] });
 
             const economy = loadJsonSafe(ECONOMY_PATH, {});
@@ -104,8 +89,7 @@ module.exports = {
             const balance = getBalance(economy, userId);
 
             if (balance < vip.price) {
-                // CORRIGIDO: usa a sintaxe 'flags'
-                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}. (Saldo: ${balance})`, flags: [MessageFlags.Ephemeral] });
+                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}. (Saldo: ${balance.toLocaleString('pt-BR')})`, flags: [MessageFlags.Ephemeral] });
             }
 
             const newBalance = balance - vip.price;
@@ -115,32 +99,27 @@ module.exports = {
             const guild = message.guild;
             const member = await guild.members.fetch(userId).catch(() => null);
             if (!member) {
-                // CORRIGIDO: usa a sintaxe 'flags'
                 return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', flags: [MessageFlags.Ephemeral] });
             }
 
             const role = guild.roles.cache.get(vip.id);
             if (!role) {
-                // CORRIGIDO: usa a sintaxe 'flags'
                 return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', flags: [MessageFlags.Ephemeral] });
             }
 
             await member.roles.add(role).catch(err => {
                 console.error("Erro ao adicionar cargo VIP:", err);
-                // CORRIGIDO: usa a sintaxe 'flags'
                 return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', flags: [MessageFlags.Ephemeral] });
             });
 
-            // salva/atualiza vips.json
+            // Lógica de salvar vips.json (mantida)
             let vips = loadJsonSafe(VIPS_PATH, []);
             if (!Array.isArray(vips)) {
                 vips = [];
             }
-            
             const now = Date.now();
             const monthMs = 30 * 24 * 60 * 60 * 1000;
             const existingIndex = vips.findIndex(e => e.userId === userId && e.guildId === guild.id && e.roleId === vip.id);
-
             let expiresAt;
             if (existingIndex !== -1) {
                 const existing = vips[existingIndex];
@@ -151,14 +130,12 @@ module.exports = {
                 expiresAt = now + monthMs;
                 vips.push({ userId, guildId: guild.id, roleId: vip.id, expiresAt });
             }
-
             saveJsonSafe(VIPS_PATH, vips);
 
             sendLog(client, "vip", { userId, vipName: vip.name });
 
             const expiresDate = new Date(expiresAt).toLocaleString('pt-BR');
-            // CORRIGIDO: usa a sintaxe 'flags'
-            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price} moedas**.\n💰 Saldo restante: **${newBalance}**.\n⏳ VIP expira em: **${expiresDate}**.`, flags: [MessageFlags.Ephemeral] });
+            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price.toLocaleString('pt-BR')} moedas**.\n💰 Saldo restante: **${newBalance.toLocaleString('pt-BR')}**.\n⏳ VIP expira em: **${expiresDate}**.`, flags: [MessageFlags.Ephemeral] });
         });
 
         collector.on('end', () => {

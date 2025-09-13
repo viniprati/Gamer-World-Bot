@@ -9,6 +9,7 @@ const TRANSACTIONS_PATH = path.join(__dirname, '..', '..', 'transactions.json');
 module.exports = {
     name: 'daily',
     description: 'Recebe moedas diariamente (a cada 24h).',
+    cooldown: 10, // Cooldown do comando para evitar spam, o cooldown real é de 24h
     async execute(message, args, client) {
         let economy = {};
         if (fs.existsSync(ECONOMY_PATH)) {
@@ -43,20 +44,20 @@ module.exports = {
         }
 
         const amountReceived = Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000;
-        const currentBalance = economy[userId]?.balance || economy[userId] || 0;
+
+        // REVERTIDO: Lê o saldo como um número simples
+        const currentBalance = economy[userId] || 0;
         const newBalance = currentBalance + amountReceived;
 
-        if (!economy[userId] || typeof economy[userId] !== 'object') {
-            economy[userId] = {};
-        }
-        economy[userId].balance = newBalance;
+        // REVERTIDO: Salva o saldo como um número simples
+        economy[userId] = newBalance;
         
         transactions[userId].push({ type: 'daily', amount: amountReceived, date: now.toISOString() });
 
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economy, null, 2));
         fs.writeFileSync(TRANSACTIONS_PATH, JSON.stringify(transactions, null, 2));
 
-        // ALTERADO: Agora chama o log do tipo 'daily' com os dados corretos
+        // Usa o log de daily que já criamos, ele funciona perfeitamente com os números
         await sendLog(client, "daily", {
             userId: userId,
             amount: amountReceived,

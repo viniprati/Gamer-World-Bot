@@ -1,6 +1,7 @@
+
+const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
     name: 'balance',
@@ -11,10 +12,14 @@ module.exports = {
         if (fs.existsSync(filePath)) data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
         const userId = message.author.id;
-        const balance = data[userId] || 0;
+        const userData = data[userId];
+
+        // CORREÇÃO: Lê o saldo de forma inteligente
+        const balance = (userData && userData.balance) || userData || 0;
 
         const ranking = Object.entries(data)
-            .sort((a, b) => b[1] - a[1])
+            // CORREÇÃO: Ordena o ranking lendo a propriedade 'balance' se ela existir
+            .sort(([, a], [, b]) => ((b.balance || b) - (a.balance || a)))
             .map(([id]) => id);
 
         const position = ranking.indexOf(userId) + 1;
@@ -24,7 +29,7 @@ module.exports = {
             .setTitle(`💰 Saldo de ${message.author.username}`)
             .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
             .addFields(
-                { name: 'Moedas', value: `🎮 ${balance}`, inline: true },
+                { name: 'Moedas', value: `🎮 ${balance.toLocaleString('pt-BR')}`, inline: true },
                 { name: 'Ranking', value: `🏆 ${position}º lugar`, inline: true }
             )
             .setFooter({ text: 'Sistema de economia 💸', iconURL: client.user.displayAvatarURL() })

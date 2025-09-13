@@ -8,7 +8,6 @@ let changeCounter = 0;
 module.exports = {
     name: 'addcoins',
     description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
-    // Adicionado cooldown para prevenir spam acidental
     cooldown: 5, 
     async execute(message, args, client) {
         const allowedUsers = ['1077723832036630528', '983870132063453235', '820041555443449856', '1109255544495145021'];
@@ -29,24 +28,21 @@ module.exports = {
 
         const targetId = target.id;
 
-        // CORREÇÃO: Lê o saldo da propriedade 'balance' e lida com ambos os formatos (antigo e novo)
-        const currentBalance = economyData[targetId]?.balance || economyData[targetId] || 0;
+        // REVERTIDO: Lê o saldo como um número simples
+        const currentBalance = economyData[targetId] || 0;
         const newBalance = currentBalance + amount;
 
-        // CORREÇÃO: Garante que os dados sejam salvos no formato de objeto { balance: ... }
-        if (!economyData[targetId] || typeof economyData[targetId] !== 'object') {
-            economyData[targetId] = {};
-        }
-        economyData[targetId].balance = newBalance;
+        // REVERTIDO: Salva o saldo como um número simples
+        economyData[targetId] = newBalance;
         
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
 
-        // CORREÇÃO: Garante que o 'newBalance' enviado para o log seja um número
+        // A chamada de log continua funcionando, pois 'newBalance' é um número
         await sendLog(client, "economy", { 
             userId: targetId, 
             action: `Moedas adicionadas por Staff (${message.author.tag})`,
             amount: amount, 
-            newBalance: newBalance // Envia o número, não o objeto
+            newBalance: newBalance
         });
 
         // Lógica de backup (mantida)
@@ -61,7 +57,6 @@ module.exports = {
         }
 
         const fmt = (n) => n.toLocaleString('pt-BR');
-        // CORREÇÃO: Usa a variável 'newBalance' para a resposta
         message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };
