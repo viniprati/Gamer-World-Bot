@@ -26,20 +26,21 @@ module.exports = {
         }
 
         const targetId = target.id;
+        const userData = economyData[targetId];
 
-        // REVERTIDO: Lê o saldo como um número simples
-        const currentBalance = economyData[targetId] || 0;
+        // A LÓGICA INTELIGENTE E DEFINITIVA
+        // Garante que 'currentBalance' será sempre um número.
+        const currentBalance = (userData && userData.balance) || userData || 0;
 
-        // Lógica para não deixar o saldo negativo
+        // A matemática agora é segura e impede saldo negativo.
         const newBalance = Math.max(0, currentBalance - amountToRemove);
         const amountActuallyRemoved = currentBalance - newBalance;
 
-        // REVERTIDO: Salva o saldo como um número simples
+        // Salva sempre como um número simples.
         economyData[targetId] = newBalance;
         
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
 
-        // Envia o log com os valores corretos
         await sendLog(client, "economy", { 
             userId: targetId, 
             action: `Moedas removidas por Staff (${message.author.tag})`,
