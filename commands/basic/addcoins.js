@@ -28,16 +28,15 @@ module.exports = {
 
         const targetId = target.id;
 
-        // REVERTIDO: Lê o saldo como um número simples
+        // LÓGICA 100% REVERTIDA: LÊ E SOMA NÚMEROS
         const currentBalance = economyData[targetId] || 0;
         const newBalance = currentBalance + amount;
 
-        // REVERTIDO: Salva o saldo como um número simples
+        // LÓGICA 100% REVERTIDA: SALVA O RESULTADO COMO UM NÚMERO
         economyData[targetId] = newBalance;
         
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
 
-        // A chamada de log continua funcionando, pois 'newBalance' é um número
         await sendLog(client, "economy", { 
             userId: targetId, 
             action: `Moedas adicionadas por Staff (${message.author.tag})`,
@@ -45,7 +44,7 @@ module.exports = {
             newBalance: newBalance
         });
 
-        // Lógica de backup (mantida)
+        // Lógica de backup
         changeCounter++;
         if (changeCounter >= 20) {
             const guild = client.guilds.cache.get("1251297674058137751");
@@ -57,6 +56,7 @@ module.exports = {
         }
 
         const fmt = (n) => n.toLocaleString('pt-BR');
+        // A RESPOSTA USA A VARIÁVEL NUMÉRICA 'newBalance'
         message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };
