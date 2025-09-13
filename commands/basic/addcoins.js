@@ -1,17 +1,15 @@
-// CÓDIGO CORRIGIDO PARA: commands/basic/addcoins.js
-
 const fs = require('fs');
 const path = require('path');
-// CORREÇÃO: O caminho sobe dois níveis para encontrar o logger.js na raiz.
-const { sendLog } = require('../../logger.js'); 
+const { sendLog } = require('../../logger.js');
 
-// CORREÇÃO: O caminho também sobe dois níveis para encontrar o economy.json na raiz.
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
-let changeCounter = 0; // Este contador será resetado toda vez que o bot reiniciar. Considere salvar em um arquivo se precisar de persistência.
+let changeCounter = 0;
 
 module.exports = {
     name: 'addcoins',
     description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
+    // Adicionado cooldown para prevenir spam acidental
+    cooldown: 5, 
     async execute(message, args, client) {
         const allowedUsers = ['1077723832036630528', '983870132063453235', '820041555443449856', '1109255544495145021'];
         if (!allowedUsers.includes(message.author.id)) {
@@ -24,23 +22,34 @@ module.exports = {
         if (!target) return message.reply('Mencione o usuário para adicionar moedas.');
         if (isNaN(amount) || amount <= 0) return message.reply('Digite um valor válido.');
 
-        let data = {};
+        let economyData = {};
         if (fs.existsSync(ECONOMY_PATH)) {
-            data = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
+            economyData = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
         }
 
-        data[target.id] = (data[target.id] || 0) + amount;
-        fs.writeFileSync(ECONOMY_PATH, JSON.stringify(data, null, 2));
+        const targetId = target.id;
 
-        // Chamada de log
+        // CORREÇÃO: Lê o saldo da propriedade 'balance' e lida com ambos os formatos (antigo e novo)
+        const currentBalance = economyData[targetId]?.balance || economyData[targetId] || 0;
+        const newBalance = currentBalance + amount;
+
+        // CORREÇÃO: Garante que os dados sejam salvos no formato de objeto { balance: ... }
+        if (!economyData[targetId] || typeof economyData[targetId] !== 'object') {
+            economyData[targetId] = {};
+        }
+        economyData[targetId].balance = newBalance;
+        
+        fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
+
+        // CORREÇÃO: Garante que o 'newBalance' enviado para o log seja um número
         await sendLog(client, "economy", { 
-            userId: target.id, 
-            action: `Adicionado por Staff (${message.author.tag})`,
+            userId: targetId, 
+            action: `Moedas adicionadas por Staff (${message.author.tag})`,
             amount: amount, 
-            newBalance: data[target.id] 
+            newBalance: newBalance // Envia o número, não o objeto
         });
 
-        // Lógica de backup
+        // Lógica de backup (mantida)
         changeCounter++;
         if (changeCounter >= 20) {
             const guild = client.guilds.cache.get("1251297674058137751");
@@ -52,6 +61,7 @@ module.exports = {
         }
 
         const fmt = (n) => n.toLocaleString('pt-BR');
-        message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(data[target.id])} moedas**.`);
+        // CORREÇÃO: Usa a variável 'newBalance' para a resposta
+        message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };

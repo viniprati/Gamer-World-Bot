@@ -1,4 +1,5 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+// ATUALIZADO: Adicionado 'MessageFlags' para a nova sintaxe de mensagens efêmeras
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -95,14 +96,16 @@ module.exports = {
 
             const choice = i.values[0];
             const vip = vipRoles[choice];
-            if (!vip) return i.reply({ content: 'Opção inválida.', ephemeral: true });
+            // CORRIGIDO: usa a sintaxe 'flags'
+            if (!vip) return i.reply({ content: 'Opção inválida.', flags: [MessageFlags.Ephemeral] });
 
             const economy = loadJsonSafe(ECONOMY_PATH, {});
             const userId = i.user.id;
             const balance = getBalance(economy, userId);
 
             if (balance < vip.price) {
-                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}. (Saldo: ${balance})`, ephemeral: true });
+                // CORRIGIDO: usa a sintaxe 'flags'
+                return i.reply({ content: `❌ Você não tem moedas suficientes para comprar ${vip.name}. (Saldo: ${balance})`, flags: [MessageFlags.Ephemeral] });
             }
 
             const newBalance = balance - vip.price;
@@ -112,23 +115,25 @@ module.exports = {
             const guild = message.guild;
             const member = await guild.members.fetch(userId).catch(() => null);
             if (!member) {
-                return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', ephemeral: true });
+                // CORRIGIDO: usa a sintaxe 'flags'
+                return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', flags: [MessageFlags.Ephemeral] });
             }
 
             const role = guild.roles.cache.get(vip.id);
-            if (!role) return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', ephemeral: true });
+            if (!role) {
+                // CORRIGIDO: usa a sintaxe 'flags'
+                return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', flags: [MessageFlags.Ephemeral] });
+            }
 
             await member.roles.add(role).catch(err => {
                 console.error("Erro ao adicionar cargo VIP:", err);
-                return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', ephemeral: true });
+                // CORRIGIDO: usa a sintaxe 'flags'
+                return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', flags: [MessageFlags.Ephemeral] });
             });
 
             // salva/atualiza vips.json
             let vips = loadJsonSafe(VIPS_PATH, []);
-
-            // ADICIONADO: Verificação para garantir que 'vips' é um array. Se não for, reseta para um array vazio.
             if (!Array.isArray(vips)) {
-                console.warn(`[LOJA] O arquivo vips.json não continha um array. Resetando para [].`);
                 vips = [];
             }
             
@@ -152,7 +157,8 @@ module.exports = {
             sendLog(client, "vip", { userId, vipName: vip.name });
 
             const expiresDate = new Date(expiresAt).toLocaleString('pt-BR');
-            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price} moedas**.\n💰 Saldo restante: **${newBalance}**.\n⏳ VIP expira em: **${expiresDate}**.`, ephemeral: true });
+            // CORRIGIDO: usa a sintaxe 'flags'
+            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price} moedas**.\n💰 Saldo restante: **${newBalance}**.\n⏳ VIP expira em: **${expiresDate}**.`, flags: [MessageFlags.Ephemeral] });
         });
 
         collector.on('end', () => {
