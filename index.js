@@ -22,18 +22,34 @@ const client = new Client({
 client.commands = new Collection();
 client.cooldowns = new Collection(); // Para o sistema antiraid de comandos
 
-// ===== Carregar comandos (seu código, sem alterações) =====
+// ===== Carregar comandos (COM DEBUG) =====
+console.log('[Carregador] Iniciando o carregamento de comandos...');
 const commandFolders = fs.readdirSync(path.join(__dirname, 'commands'));
+
 for (const folder of commandFolders) {
     const folderPath = path.join(__dirname, 'commands', folder);
+
     if (fs.lstatSync(folderPath).isDirectory()) {
+        console.log(`[Carregador] Lendo a pasta: ${folder}`);
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+
         for (const file of commandFiles) {
-            const command = require(path.join(folderPath, file));
-            if (command.name) client.commands.set(command.name, command);
+            console.log(`[Carregador] Encontrado o arquivo: ${file}`);
+            try {
+                const command = require(path.join(folderPath, file));
+                if (command.name) {
+                    client.commands.set(command.name, command);
+                    console.log(`[Carregador] ✅ Comando '${command.name}' carregado com sucesso.`);
+                } else {
+                    console.log(`[Carregador] ⚠️ Arquivo '${file}' ignorado (sem a propriedade 'name').`);
+                }
+            } catch (error) {
+                console.error(`[Carregador] ❌ Falha ao carregar o comando no arquivo '${file}':`, error);
+            }
         }
     }
 }
+console.log('[Carregador] Carregamento de comandos finalizado.');
 
 // ===== Economia (seu código, sem alterações) =====
 const economyFile = path.join(__dirname, 'economy.json');
@@ -44,13 +60,12 @@ client.economy = {
     loadEconomy: () => JSON.parse(fs.readFileSync(economyFile, 'utf8')),
     saveEconomy: (data) => fs.writeFileSync(economyFile, JSON.stringify(data, null, 2)),
 };
-const economyCooldowns = new Collection(); // Renomeado para não conflitar
+const economyCooldowns = new Collection();
 
 // ===== Quando ligar =====
 client.once('clientReady', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
     
-    // INICIA O MONITOR DE VIPS
     try {
         startVipMonitor(client);
         console.log('✅ Monitor de VIPs iniciado com sucesso.');
@@ -63,7 +78,7 @@ client.once('clientReady', () => {
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
-    // ===== Sistema de Economia por mensagem (ATUALIZADO E PADRONIZADO) =====
+    // ===== Sistema de Economia por mensagem (seu código, mantido) =====
     if (!economyCooldowns.has(message.author.id)) {
         economyCooldowns.set(message.author.id, Date.now());
         setTimeout(() => economyCooldowns.delete(message.author.id), 3000);
@@ -71,12 +86,10 @@ client.on('messageCreate', async message => {
         let data = client.economy.loadEconomy();
         const userId = message.author.id;
         
-        // CORREÇÃO: Lê o saldo de forma inteligente (de um objeto ou de um número)
         const currentBalance = data[userId]?.balance || data[userId] || 0;
         const amount = Math.floor(Math.random() * 5) + 1;
         const newBalance = currentBalance + amount;
 
-        // CORREÇÃO: Garante que o usuário seja salvo no formato de objeto
         if (!data[userId] || typeof data[userId] !== 'object') {
             data[userId] = {};
         }
@@ -120,7 +133,6 @@ client.on('messageCreate', async message => {
         console.error(`Erro no comando '${commandName}':`, error);
         message.reply('❌ Ops! Ocorreu um erro inesperado ao executar este comando.');
 
-        // Envia o log de erro para o canal configurado
         await sendLog(client, 'error', {
             commandName: commandName,
             error: error,
