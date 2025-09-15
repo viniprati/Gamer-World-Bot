@@ -28,9 +28,8 @@ module.exports = {
         const targetId = target.id;
         const userData = economyData[targetId];
 
-        // A LÓGICA INTELIGENTE E DEFINITIVA
-        // Garante que 'currentBalance' será sempre um número.
-        const currentBalance = (userData && userData.balance) || userData || 0;
+        // CORRIGIDO: Lógica atualizada com a sugestão do SonarLint (optional chaining)
+        const currentBalance = userData?.balance || userData || 0;
 
         // A matemática agora é segura e impede saldo negativo.
         const newBalance = Math.max(0, currentBalance - amountToRemove);
