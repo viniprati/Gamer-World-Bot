@@ -2,10 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { EmbedBuilder } = require('discord.js');
 
-// CORRIGIDO: Agora usamos a string completa com o ID do emoji
-const EMOJI_GOLD = '<:ouro:1415671965431107717>';
-const EMOJI_SILVER = '<:prata:1415671969071894631>';
-const EMOJI_BRONZE = '<:bronze:1415671967088119840>';
+// CORRIGIDO: Adicionado o "a" para emojis ANIMADOS
+const EMOJI_GOLD = '<a:ouro:1415671965431107717>';
+const EMOJI_SILVER = '<a:prata:1415671969071894631>';
+const EMOJI_BRONZE = '<a:bronze:1415671967088119840>';
 
 module.exports = {
     name: 'leaderboard',
