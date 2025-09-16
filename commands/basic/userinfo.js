@@ -1,46 +1,43 @@
 const { EmbedBuilder } = require('discord.js');
-// CORRIGIDO: A importação agora aponta para o nosso arquivo de lógica, 'badgeManager.js'
 const { getBadges } = require('./badgeManager.js'); 
 const fs = require('fs');
 const path = require('path');
 
 module.exports = {
     name: 'userinfo',
-    description: 'Mostra informações detalhadas sobre um usuário.',
-    cooldown: 10, // Adicionado um cooldown
+    aliases: ['profile', 'perfil'],
+    description: 'Mostra o perfil de jogador de um membro do servidor.',
+    cooldown: 10,
     async execute(message, args, client) {
-        // Pega o membro mencionado ou o autor da mensagem
+        // CORRIGIDO: Pega o membro do servidor (para cargos, data de entrada, etc.)
         const member = message.mentions.members.first() || message.member;
+        
+        // Busca o objeto de usuário (para dados globais como banner, data de criação da conta)
+        // Usamos { force: true } para garantir que o banner seja sempre o mais recente
+        const user = await client.users.fetch(member.id, { force: true });
 
-        // --- Leitura de Dados para Insígnias ---
+        // --- Leitura de Dados de Economia e Ranking ---
         const economyPath = path.join(__dirname, '..', '..', 'economy.json');
         let economyData = {};
         if (fs.existsSync(economyPath)) {
             economyData = JSON.parse(fs.readFileSync(economyPath, 'utf8'));
         }
-        const userData = economyData[member.id] || {}; // Usa userData para passar para as badges
+        const userData = economyData[user.id] || {};
+        const balance = userData?.balance || userData || 0;
 
-        // CORRIGIDO: Calcula o ranking lendo o saldo de forma inteligente (número ou objeto)
         const sortedUsers = Object.entries(economyData)
-            .sort(([, a], [, b]) => {
-                const balanceA = a?.balance || a || 0;
-                const balanceB = b?.balance || b || 0;
-                return balanceB - balanceA;
-            })
+            .sort(([, a], [, b]) => (b?.balance || b || 0) - (a?.balance || a || 0))
             .map(([id]) => id);
-        const topRanking = sortedUsers.indexOf(member.id) + 1;
+        const topRanking = sortedUsers.indexOf(user.id) + 1;
 
         // --- Formatação dos Dados para o Embed ---
-
         const statusMap = {
-            online: '🟢 Online',
-            idle: '🟡 Ausente',
-            dnd: '🔴 Não Perturbe',
-            offline: '⚫ Offline'
+            online: '🟢 Online', idle: '🟡 Ausente',
+            dnd: '🔴 Não Perturbe', offline: '⚫ Offline / Invisível'
         };
-        const userStatus = member.presence ? statusMap[member.presence.status] : '⚫ Offline';
+        const userStatus = member.presence ? statusMap[member.presence.status] : statusMap.offline;
 
-        const createdAtTimestamp = `<t:${Math.floor(member.user.createdAt.getTime() / 1000)}:F>`;
+        const createdAtTimestamp = `<t:${Math.floor(user.createdAt.getTime() / 1000)}:f>`;
         const joinedAtTimestamp = `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:R>`;
 
         const roles = member.roles.cache
@@ -48,29 +45,35 @@ module.exports = {
             .sort((a, b) => b.position - a.position)
             .map(role => role.toString());
         
-        let roleDisplay = roles.join(' ') || 'Nenhum cargo';
+        let roleDisplay = roles.length > 0 ? roles.join(', ') : 'Nenhum cargo notável';
         if (roleDisplay.length > 1024) {
             roleDisplay = `${roleDisplay.substring(0, 1020)}...`;
         }
         
-        // Pega as insígnias do usuário (agora com quebra de linha)
         const badges = getBadges(member, userData, topRanking);
 
-        // --- Criação do Embed ---
-
+        // --- Criação do Embed de Perfil de Jogador ---
         const embed = new EmbedBuilder()
-            .setColor(member.displayHexColor === '#000000' ? '#95a5a6' : member.displayHexColor)
-            .setAuthor({ name: `Perfil de ${member.user.tag}`, iconURL: member.user.displayAvatarURL() })
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+            .setColor(member.displayHexColor === '#000000' ? '#5865F2' : member.displayHexColor)
+            .setAuthor({ name: `Perfil de Jogador: ${user.username}`, iconURL: user.displayAvatarURL() })
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
             .addFields(
-                { name: '👤 Informações Principais', value: `**› Nick:** ${member.displayName}\n**› ID:** ${member.id}\n**› Status:** ${userStatus}`, inline: false },
-                { name: '📅 Datas', value: `**› Criou a conta:** ${createdAtTimestamp}\n**› Entrou aqui:** ${joinedAtTimestamp}`, inline: false },
-                { name: `🎭 Cargos [${roles.length}]`, value: roleDisplay, inline: false },
-                { name: '🏅 Insígnias', value: badges, inline: false }
+                { name: '🎮 Informações do Jogador', value: `**Tag:** ${user.tag}\n**ID:** \`${user.id}\``, inline: true },
+                { name: '💰 Inventário', value: `**GameCoins:** ${balance.toLocaleString('pt-BR')}\n**Rank:** #${topRanking > 0 ? topRanking : 'N/A'}`, inline: true },
+                { name: '🌐 Status de Conexão', value: userStatus, inline: false },
+                { name: '⏳ Linha do Tempo', value: `**Conta criada em:** ${createdAtTimestamp}\n**Entrou na guilda:** ${joinedAtTimestamp}`, inline: false },
+                { name: `🛡️ Tags de Clã (${roles.length})`, value: roleDisplay, inline: false },
+                { name: '🏆 Conquistas', value: badges, inline: false }
             )
             .setTimestamp()
-            .setFooter({ text: `Solicitado por: ${message.author.username}`, iconURL: message.author.displayAvatarURL() });
+            .setFooter({ text: `Gamer World Profile Card` });
 
-        message.channel.send({ embeds: [embed] });
+        // Se o usuário tiver um banner de perfil, usa como imagem principal
+        if (user.banner) {
+            embed.setImage(user.bannerURL({ dynamic: true, size: 512 }));
+        }
+
+        // Envia a resposta final
+        await message.channel.send({ embeds: [embed] });
     },
 };
