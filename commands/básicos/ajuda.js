@@ -1,15 +1,13 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { prefix } = require('../../config.json');
 
-// NOVO: Mapa de Emojis para cada categoria. Adicione novas pastas aqui!
 const categoryEmojis = {
-    'Basic': '⚙️', // Engrenagem para comandos básicos/gerais
+    'Básicos': '⚙️',
     'Economia': '💰',
-    'Moderação': '🛡️',
-    'Diversão': '🎮', // Exemplo de outra categoria
-    // Adicione os nomes exatos das suas outras pastas aqui
+    'Gerais': '🌐',
+    'Moderação': '🛡️'
 };
 
 module.exports = {
@@ -33,14 +31,13 @@ module.exports = {
                     try {
                         const command = require(path.join(folderPath, file));
                         if (command.name && command.description) {
-                            // MELHORADO: Formato mais limpo
                             return `**\`${prefix}${command.name}\`**\n*${command.description}*`;
                         }
                     } catch {}
                     return null;
                 })
                 .filter(Boolean)
-                .join('\n\n'); // MELHORADO: Espaço duplo para melhor legibilidade
+                .join('\n\n');
 
             if (commandsList) {
                 const categoryName = folder.charAt(0).toUpperCase() + folder.slice(1);
@@ -48,12 +45,11 @@ module.exports = {
             }
         }
 
-        // --- CRIANDO O MENU DE SELEÇÃO COM EMOJIS ---
         const menuOptions = Object.keys(categories).map(category => ({
-            label: `${category}`, // Nome mais limpo
+            label: `${category}`,
             value: category,
             description: `Veja os comandos da categoria ${category}.`,
-            emoji: categoryEmojis[category] || '📁' // Usa o emoji do mapa ou um padrão
+            emoji: categoryEmojis[category] || '📁'
         }));
         
         const selectMenu = new StringSelectMenuBuilder()
@@ -61,7 +57,6 @@ module.exports = {
             .setPlaceholder('Escolha uma categoria de comandos...')
             .addOptions(menuOptions);
             
-        // Adiciona um botão para voltar à página inicial
         const homeButton = new ButtonBuilder()
             .setCustomId('home_button')
             .setLabel('Página Inicial')
@@ -71,9 +66,8 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(selectMenu);
         const homeRow = new ActionRowBuilder().addComponents(homeButton);
 
-        // --- EMBED INICIAL ---
         const initialEmbed = new EmbedBuilder()
-            .setColor('#5865F2') // Cor do Discord
+            .setColor('#5865F2')
             .setTitle(`🎮 Central de Comandos - ${message.guild.name}`)
             .setDescription('Bem-vindo à central de ajuda!\n\nUse o menu abaixo para navegar pelas diferentes categorias de comandos e descobrir tudo que eu posso fazer.')
             .setThumbnail(message.guild.iconURL({ dynamic: true }))
@@ -84,9 +78,9 @@ module.exports = {
             components: [row]
         });
 
-        // --- COLETOR DE INTERAÇÕES DO MENU ---
+        // --- COLETOR DE INTERAÇÕES CORRIGIDO ---
         const collector = response.createMessageComponentCollector({
-            componentType: ComponentType.StringSelect || ComponentType.Button,
+            // A linha 'componentType' foi REMOVIDA.
             time: 5 * 60 * 1000 // 5 minutos
         });
 
@@ -95,13 +89,11 @@ module.exports = {
                 return interaction.reply({ content: 'Apenas o autor do comando pode usar este menu.', ephemeral: true });
             }
             
-            // Se o botão "Página Inicial" for clicado
             if (interaction.isButton() && interaction.customId === 'home_button') {
                 await interaction.update({ embeds: [initialEmbed], components: [row] });
                 return;
             }
 
-            // Se uma opção do menu for selecionada
             if (interaction.isStringSelectMenu()) {
                 const selectedCategory = interaction.values[0];
                 const commandsText = categories[selectedCategory];
@@ -119,7 +111,6 @@ module.exports = {
         });
 
         collector.on('end', () => {
-            // Edita a mensagem final para mostrar que o menu expirou
             const expiredEmbed = new EmbedBuilder()
                 .setColor('#95a5a6')
                 .setTitle('📖 Central de Ajuda')
