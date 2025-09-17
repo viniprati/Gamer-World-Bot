@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { prefix } = require('../../config.json');
@@ -78,15 +78,14 @@ module.exports = {
             components: [row]
         });
 
-        // --- COLETOR DE INTERAÇÕES CORRIGIDO ---
         const collector = response.createMessageComponentCollector({
-            // A linha 'componentType' foi REMOVIDA.
             time: 5 * 60 * 1000 // 5 minutos
         });
 
         collector.on('collect', async (interaction) => {
+            // CORRIGIDO: Substituído 'ephemeral: true' pela sintaxe 'flags'
             if (interaction.user.id !== message.author.id) {
-                return interaction.reply({ content: 'Apenas o autor do comando pode usar este menu.', ephemeral: true });
+                return interaction.reply({ content: 'Apenas o autor do comando pode usar este menu.', flags: [MessageFlags.Ephemeral] });
             }
             
             if (interaction.isButton() && interaction.customId === 'home_button') {
