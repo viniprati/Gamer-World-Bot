@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+// CORRIGIDO: O caminho agora é './' pois os arquivos estão na mesma pasta 'gerais'.
 const { getBadges } = require('./badgeManager.js'); 
 const fs = require('fs');
 const path = require('path');
@@ -9,11 +10,7 @@ module.exports = {
     description: 'Mostra o perfil de jogador de um membro do servidor.',
     cooldown: 10,
     async execute(message, args, client) {
-        // CORRIGIDO: Pega o membro do servidor (para cargos, data de entrada, etc.)
         const member = message.mentions.members.first() || message.member;
-        
-        // Busca o objeto de usuário (para dados globais como banner, data de criação da conta)
-        // Usamos { force: true } para garantir que o banner seja sempre o mais recente
         const user = await client.users.fetch(member.id, { force: true });
 
         // --- Leitura de Dados de Economia e Ranking ---
@@ -68,12 +65,10 @@ module.exports = {
             .setTimestamp()
             .setFooter({ text: `Gamer World Profile Card` });
 
-        // Se o usuário tiver um banner de perfil, usa como imagem principal
         if (user.banner) {
             embed.setImage(user.bannerURL({ dynamic: true, size: 512 }));
         }
 
-        // Envia a resposta final
         await message.channel.send({ embeds: [embed] });
     },
 };
