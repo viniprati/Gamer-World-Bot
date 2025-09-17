@@ -41,7 +41,7 @@ module.exports = {
             .setDescription('Selecione abaixo o VIP que deseja comprar. Você precisa ter moedas suficientes.')
             .addFields(
                 { name: '💎 VIP Diamante — 200000 moedas', value: 'Benefícios: +2 VIP Ouro, XP 2.5x, pay 10h, 7 sorteios', inline: false },
-                { name: '🥇 VIP Ouro — 120000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
+                { name: '🥇 VIP Ouro — 160000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
                 { name: '🥈 VIP Prata — 80000 moedas', value: 'Benefícios: XP 1.5x, pay 2h, categoria VIP, 2 sorteios', inline: false }
             )
             .setFooter({ text: 'Economize suas moedas e garanta seu VIP!' });
@@ -51,7 +51,7 @@ module.exports = {
             .setPlaceholder('Selecione um VIP...')
             .addOptions(
                 { label: '🥈 VIP Prata', description: 'Custa 80000 moedas', value: 'prata' },
-                { label: '🥇 VIP Ouro', description: 'Custa 120000 moedas', value: 'ouro' },
+                { label: '🥇 VIP Ouro', description: 'Custa 160000 moedas', value: 'ouro' },
                 { label: '💎 VIP Diamante', description: 'Custa 200000 moedas', value: 'diamante' }
             );
 
@@ -65,7 +65,7 @@ module.exports = {
 
             const vipRoles = {
                 prata: { id: '1389915201641512960', price: 80000, name: '🥈 VIP Prata' },
-                ouro: { id: '1389915441157115934', price: 120000, name: '🥇 VIP Ouro' },
+                ouro: { id: '1389915441157115934', price: 160000, name: '🥇 VIP Ouro' },
                 diamante: { id: '1389915552084004884', price: 200000, name: '💎 VIP Diamante' }
             };
 

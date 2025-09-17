@@ -43,17 +43,20 @@ for (const folder of commandFolders) {
 console.log('[Carregador] Carregamento de comandos finalizado.');
 
 
-// ===== Economia =====
+// ===== Economia e Rastreamento =====
 const economyFile = path.join(__dirname, 'economy.json');
+const usageFile = path.join(__dirname, 'command_usage.json');
+
 if (!fs.existsSync(economyFile)) {
     fs.writeFileSync(economyFile, JSON.stringify({}, null, 2));
 }
 client.economy = {
     loadEconomy: () => {
         try {
-            return JSON.parse(fs.readFileSync(economyFile, 'utf8'));
+            const rawData = fs.readFileSync(economyFile, 'utf8');
+            return rawData ? JSON.parse(rawData) : {};
         } catch (e) {
-            console.error("ERRO AO LER economy.json, o arquivo pode estar corrompido ou vazio. Retornando objeto vazio.", e);
+            console.error("ERRO AO LER economy.json. Retornando objeto vazio.", e);
             return {};
         }
     },
@@ -77,7 +80,6 @@ client.once('clientReady', () => {
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
-    // --- Se a mensagem é um comando, processa o comando ---
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
@@ -98,6 +100,29 @@ client.on('messageCreate', async message => {
         }
         timestamps.set(message.author.id, now);
         setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
+
+        // RASTREAMENTO DE USO DE COMANDOS
+        try {
+            let usageData = {};
+            if (fs.existsSync(usageFile)) {
+                const rawData = fs.readFileSync(usageFile, 'utf8');
+                if (rawData) usageData = JSON.parse(rawData);
+            }
+            const userId = message.author.id;
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            if (!usageData[userId]) {
+                usageData[userId] = { monthlyCount: 0, lastMonth: "0000-00" };
+            }
+            if (usageData[userId].lastMonth !== currentMonth) {
+                usageData[userId].monthlyCount = 1;
+                usageData[userId].lastMonth = currentMonth;
+            } else {
+                usageData[userId].monthlyCount += 1;
+            }
+            fs.writeFileSync(usageFile, JSON.stringify(usageData, null, 2));
+        } catch (error) {
+            console.error("Erro ao rastrear uso de comando:", error);
+        }
 
         // Execução do Comando
         try {
@@ -130,6 +155,7 @@ process.on('unhandledRejection', error => {
     console.error('ERRO GLOBAL (Unhandled Rejection):', error);
     if (client.isReady()) sendLog(client, 'error', { error, commandName: 'Processo Global (Unhandled Rejection)' });
 });
+
 process.on('uncaughtException', error => {
     console.error('ERRO GLOBAL (Uncaught Exception):', error);
     if (client.isReady()) sendLog(client, 'error', { error, commandName: 'Processo Global (Uncaught Exception)' });
