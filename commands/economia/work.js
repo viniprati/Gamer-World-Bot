@@ -9,7 +9,7 @@ const COOLDOWN_PATH = path.join(__dirname, '..', '..', 'work_cooldowns.json');
 
 const COOLDOWN_DURATION = 1 * 60 * 60 * 1000; // 1 hora em milissegundos
 
-// ATUALIZADO: A lista agora contém objetos com título, mensagem e cor
+// Lista de trabalhos temáticos de games com título, mensagem e cor
 const workOptions = [
     { title: 'Streamer em Ascensão', message: "Você passou a noite toda streamando na Twitch e ganhou **{amount} moedas** dos seus viewers!", color: '#6441A5' },
     { title: 'Caçador de Bugs', message: "Você encontrou uma falha na beta do novo JRPG e os desenvolvedores te pagaram **{amount} moedas** como recompensa.", color: '#E74C3C' },
@@ -53,15 +53,15 @@ module.exports = {
         const timePassed = now - lastWork;
 
         if (timePassed < COOLDOWN_DURATION) {
-            const timeLeft = COOLDOWN_DURATION - timePassed;
             const nextWorkTimestamp = `<t:${Math.floor((lastWork + COOLDOWN_DURATION) / 1000)}:R>`;
 
-            // ATUALIZADO: A resposta de cooldown agora é um embed
+            // EMBED DE COOLDOWN APRIMORADO
             const cooldownEmbed = new EmbedBuilder()
                 .setColor('#E67E22')
-                .setTitle('Hora de Descansar, Gamer!')
-                .setDescription(`Você já completou seu turno. É preciso recarregar as energias!`)
-                .addFields({ name: 'Próximo Turno Disponível', value: `Você poderá trabalhar novamente ${nextWorkTimestamp}.` })
+                .setTitle('🔋 Energia Recarregando...')
+                .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
+                .setDescription(`Haja com calma, campeão! Suas energias precisam ser recarregadas antes do próximo turno.`)
+                .addFields({ name: 'Disponível Novamente', value: `Seu próximo trabalho estará disponível ${nextWorkTimestamp}.` })
                 .setTimestamp();
             
             return message.reply({ embeds: [cooldownEmbed] });
@@ -89,17 +89,19 @@ module.exports = {
         const chosenWork = workOptions[Math.floor(Math.random() * workOptions.length)];
         const formattedMessage = chosenWork.message.replace('{amount}', `**${amountEarned.toLocaleString('pt-BR')}**`);
 
-        // ATUALIZADO: O embed de sucesso está mais bonito e organizado
+        // EMBED DE SUCESSO APRIMORADO
         const embed = new EmbedBuilder()
             .setColor(chosenWork.color)
-            .setAuthor({ name: `Relatório de Trabalho de ${message.author.username}`, iconURL: message.author.displayAvatarURL() })
             .setTitle(chosenWork.title)
+            .setAuthor({ name: `Diário de Missão de ${message.author.username}`, iconURL: message.author.displayAvatarURL() })
+            .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
             .setDescription(formattedMessage)
             .addFields(
-                { name: '✅ Ganhos', value: `+ ${amountEarned.toLocaleString('pt-BR')} moedas`, inline: true },
-                { name: '💰 Saldo Final', value: `${newBalance.toLocaleString('pt-BR')} moedas`, inline: true }
+                { name: '✅ Recompensa', value: `+ **${amountEarned.toLocaleString('pt-BR')}** GameCoins`, inline: true },
+                { name: '💰 Mochila', value: `**${newBalance.toLocaleString('pt-BR')}** GameCoins`, inline: true }
             )
-            .setTimestamp();
+            .setTimestamp()
+            .setFooter({ text: 'Missão concluída com sucesso!' });
             
         message.reply({ embeds: [embed] });
     },

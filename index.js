@@ -4,6 +4,7 @@ const path = require('path');
 const { token, prefix } = require('./config.json');
 const { sendLog } = require('./logger');
 const { startVipMonitor } = require('./utils/vipManager');
+const { checkAndBackup } = require('./utils/backupManager');
 
 // ===== Criar client =====
 const client = new Client({
@@ -43,7 +44,7 @@ for (const folder of commandFolders) {
 console.log('[Carregador] Carregamento de comandos finalizado.');
 
 
-// ===== Economia e Rastreamento =====
+// ===== Economia, Rastreamento e Backup =====
 const economyFile = path.join(__dirname, 'economy.json');
 const usageFile = path.join(__dirname, 'command_usage.json');
 
@@ -60,7 +61,11 @@ client.economy = {
             return {};
         }
     },
-    saveEconomy: (data) => fs.writeFileSync(economyFile, JSON.stringify(data, null, 2)),
+    saveEconomy: (data) => {
+        fs.writeFileSync(economyFile, JSON.stringify(data, null, 2));
+        // Chama a verificação de backup toda vez que a economia é salva.
+        checkAndBackup(client, economyFile);
+    },
 };
 
 
@@ -76,10 +81,11 @@ client.once('clientReady', () => {
 });
 
 
-// ===== Evento de Mensagem (LÓGICA FINAL E CORRIGIDA) =====
+// ===== Evento de Mensagem (LÓGICA FINAL E COMPLETA) =====
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
+    // --- Se a mensagem é um comando, processa o comando ---
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
