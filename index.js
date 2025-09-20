@@ -5,6 +5,7 @@ const { token, prefix } = require('./config.json');
 const { sendLog } = require('./logger');
 const { startVipMonitor } = require('./utils/vipManager');
 const { checkAndBackup } = require('./utils/backupManager');
+const ms = require('ms');
 
 // ===== Criar client =====
 const client = new Client({
@@ -44,9 +45,10 @@ for (const folder of commandFolders) {
 console.log('[Carregador] Carregamento de comandos finalizado.');
 
 
-// ===== Economia, Rastreamento e Backup =====
+// ===== Arquivos de Dados =====
 const economyFile = path.join(__dirname, 'economy.json');
 const usageFile = path.join(__dirname, 'command_usage.json');
+const remindersFile = path.join(__dirname, 'rep_reminders.json');
 
 if (!fs.existsSync(economyFile)) {
     fs.writeFileSync(economyFile, JSON.stringify({}, null, 2));
@@ -63,20 +65,48 @@ client.economy = {
     },
     saveEconomy: (data) => {
         fs.writeFileSync(economyFile, JSON.stringify(data, null, 2));
-        // Chama a verificação de backup toda vez que a economia é salva.
         checkAndBackup(client, economyFile);
     },
 };
 
+// ===== Funções do Sistema de Lembrete de +Rep =====
+function loadReminders() {
+    if (!fs.existsSync(remindersFile)) return [];
+    try {
+        const rawData = fs.readFileSync(remindersFile, 'utf8');
+        return rawData ? JSON.parse(rawData) : [];
+    } catch { return []; }
+}
+function saveReminders(reminders) {
+    fs.writeFileSync(remindersFile, JSON.stringify(reminders, null, 2));
+}
+function startRepReminder(client) {
+    setInterval(async () => {
+        let reminders = loadReminders();
+        const now = Date.now();
+        const dueReminders = reminders.filter(r => r.remindAt <= now);
+        if (dueReminders.length > 0) {
+            for (const reminder of dueReminders) {
+                try {
+                    const user = await client.users.fetch(reminder.userId);
+                    if (user) await user.send('⏰ **Lembrete:** Já se passou 1 hora! Você já pode usar o comando `+rep` novamente no servidor para fortalecer a comunidade.');
+                } catch (error) { console.error(`Falha ao enviar lembrete de +rep para ${reminder.userId}:`, error); }
+            }
+            const remainingReminders = reminders.filter(r => r.remindAt > now);
+            saveReminders(remainingReminders);
+        }
+    }, ms('1m'));
+    console.log('✅ Sistema de lembretes de +rep iniciado.');
+}
 
 // ===== Evento de Bot Pronto =====
 client.once('clientReady', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
     try {
         startVipMonitor(client);
-        console.log('✅ Monitor de VIPs iniciado com sucesso.');
+        startRepReminder(client); // Inicia o sistema de lembretes
     } catch (error) {
-        console.error('❌ Falha ao iniciar o monitor de VIPs:', error);
+        console.error('❌ Falha ao iniciar monitores:', error);
     }
 });
 
@@ -85,7 +115,6 @@ client.once('clientReady', () => {
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
-    // --- Se a mensagem é um comando, processa o comando ---
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
@@ -139,7 +168,21 @@ client.on('messageCreate', async message => {
             sendLog(client, 'error', { commandName, error, guildName: message.guild.name, guildId: message.guild.id });
         }
     } else {
-        // --- Se NÃO for um comando, processa o ganho de moedas por mensagem ---
+        // --- Se NÃO for um comando, processa o ganho de moedas E o detector de +rep ---
+        
+        // DETECTOR DE +REP
+        if (message.content.toLowerCase().startsWith('+rep') && message.mentions.users.size > 0) {
+            if (!message.mentions.users.has(message.author.id)) {
+                const userId = message.author.id;
+                let reminders = loadReminders();
+                reminders = reminders.filter(r => r.userId !== userId);
+                reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
+                saveReminders(reminders);
+                try { await message.react('⏰'); } catch {}
+            }
+        }
+        
+        // GANHO DE MOEDAS POR MENSAGEM
         if (!economyCooldowns.has(message.author.id)) {
             economyCooldowns.set(message.author.id, Date.now());
             setTimeout(() => economyCooldowns.delete(message.author.id), 3000);
