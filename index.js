@@ -69,28 +69,53 @@ client.economy = {
     },
 };
 
-// ===== Funções do Sistema de Lembrete de +Rep =====
+// ===== Funções do Sistema de Lembrete de +Rep (COM DIAGNÓSTICO) =====
 function loadReminders() {
     if (!fs.existsSync(remindersFile)) return [];
     try {
         const rawData = fs.readFileSync(remindersFile, 'utf8');
-        return rawData ? JSON.parse(rawData) : [];
-    } catch { return []; }
+        const parsedData = rawData ? JSON.parse(rawData) : [];
+        if (Array.isArray(parsedData)) {
+            return parsedData;
+        }
+        console.warn("[Lembrete] rep_reminders.json não continha um array. Resetando.");
+        return [];
+    } catch {
+        return [];
+    }
 }
 function saveReminders(reminders) {
     fs.writeFileSync(remindersFile, JSON.stringify(reminders, null, 2));
 }
 function startRepReminder(client) {
+    console.log('✅ Sistema de lembretes de +rep iniciado. Verificando a cada minuto...');
+    
     setInterval(async () => {
+        console.log(`\n[Lembrete Debug] Verificando lembretes em: ${new Date().toLocaleString('pt-BR')}`);
+        
         let reminders = loadReminders();
         const now = Date.now();
+        
+        console.log(`[Lembrete Debug] Lidos ${reminders.length} lembretes do arquivo.`);
+        if (reminders.length > 0) {
+            console.log(`[Lembrete Debug] Próximo lembrete agendado para: ${new Date(reminders[0].remindAt).toLocaleString('pt-BR')}`);
+            console.log(`[Lembrete Debug] Horário atual (timestamp): ${now}`);
+            console.log(`[Lembrete Debug] Próximo lembrete (timestamp): ${reminders[0].remindAt}`);
+        }
+
         const dueReminders = reminders.filter(r => r.remindAt <= now);
+        console.log(`[Lembrete Debug] Encontrados ${dueReminders.length} lembretes vencidos.`);
+
         if (dueReminders.length > 0) {
             try {
                 const { REMINDER_CHANNEL_ID } = require('./config.json');
-                if (!REMINDER_CHANNEL_ID) return console.log("[Lembrete] REMINDER_CHANNEL_ID não configurado.");
+                if (!REMINDER_CHANNEL_ID) return console.log("[Lembrete Debug] ❌ ERRO: REMINDER_CHANNEL_ID não configurado.");
+
+                console.log(`[Lembrete Debug] Tentando buscar o canal: ${REMINDER_CHANNEL_ID}`);
                 const channel = await client.channels.fetch(REMINDER_CHANNEL_ID);
+                
                 if (channel) {
+                    console.log(`[Lembrete Debug] ✅ Canal #${channel.name} encontrado. Enviando lembretes...`);
                     for (const reminder of dueReminders) {
                         const reminderEmbed = new EmbedBuilder()
                             .setColor('#3498DB')
@@ -99,14 +124,21 @@ function startRepReminder(client) {
                             .setFooter({ text: 'Use o comando para fortalecer a comunidade.' })
                             .setTimestamp();
                         await channel.send({ content: `<@${reminder.userId}>`, embeds: [reminderEmbed] });
+                        console.log(`[Lembrete Debug] ✅ Lembrete enviado para o usuário ID: ${reminder.userId}`);
                     }
+                } else {
+                    console.log(`[Lembrete Debug] ❌ ERRO: Canal com ID ${REMINDER_CHANNEL_ID} não encontrado.`);
                 }
-            } catch (error) { console.error(`[Lembrete] Falha ao enviar lembretes no canal:`, error); }
+            } catch (error) {
+                console.error(`[Lembrete Debug] ❌ ERRO CRÍTICO ao enviar lembretes:`, error);
+            }
+            
             const remainingReminders = reminders.filter(r => r.remindAt > now);
+            console.log(`[Lembrete Debug] Salvando ${remainingReminders.length} lembretes restantes no arquivo.`);
             saveReminders(remainingReminders);
         }
+        console.log(`--- [Lembrete Debug] Verificação concluída ---`);
     }, ms('1m')); 
-    console.log('✅ Sistema de lembretes de +rep (direto no canal) iniciado.');
 }
 
 // ===== Evento de Bot Pronto =====
@@ -181,16 +213,15 @@ client.on('messageCreate', async message => {
     } else {
         // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
         
+        // DETECTOR DE RESPOSTA DA LORITTA (CORRIGIDO)
         if (message.author.id === '297153970613387264') { // ID da Loritta
             const successMessage = "deu uma reputação para";
             if (message.content.includes(successMessage)) {
                 
-                // Usa uma expressão regular para encontrar o primeiro ID de usuário na mensagem
                 const match = message.content.match(/<@(\d+)>/);
                 
                 if (match && match[1]) {
-                    const userId = match[1]; // O ID do usuário que deu o +rep
-                    
+                    const userId = match[1];
                     let reminders = loadReminders();
                     reminders = reminders.filter(r => r.userId !== userId);
                     reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
