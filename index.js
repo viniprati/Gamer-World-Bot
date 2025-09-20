@@ -1,4 +1,4 @@
-const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { token, prefix } = require('./config.json');
@@ -86,17 +86,27 @@ function startRepReminder(client) {
         const now = Date.now();
         const dueReminders = reminders.filter(r => r.remindAt <= now);
         if (dueReminders.length > 0) {
-            for (const reminder of dueReminders) {
-                try {
-                    const user = await client.users.fetch(reminder.userId);
-                    if (user) await user.send('⏰ **Lembrete:** Já se passou 1 hora! Você já pode usar o comando `+rep` novamente no servidor para fortalecer a comunidade.');
-                } catch (error) { console.error(`Falha ao enviar lembrete de +rep para ${reminder.userId}:`, error); }
-            }
+            try {
+                const { REMINDER_CHANNEL_ID } = require('./config.json');
+                if (!REMINDER_CHANNEL_ID) return console.log("[Lembrete] REMINDER_CHANNEL_ID não configurado.");
+                const channel = await client.channels.fetch(REMINDER_CHANNEL_ID);
+                if (channel) {
+                    for (const reminder of dueReminders) {
+                        const reminderEmbed = new EmbedBuilder()
+                            .setColor('#3498DB')
+                            .setAuthor({ name: 'Lembrete de Cooldown!', iconURL: client.user.displayAvatarURL() })
+                            .setDescription(`Ei, <@${reminder.userId}>! Já se passou 1 hora. Você já pode usar o comando \`+rep\` novamente!`)
+                            .setFooter({ text: 'Use o comando para fortalecer a comunidade.' })
+                            .setTimestamp();
+                        await channel.send({ content: `<@${reminder.userId}>`, embeds: [reminderEmbed] });
+                    }
+                }
+            } catch (error) { console.error(`[Lembrete] Falha ao enviar lembretes no canal:`, error); }
             const remainingReminders = reminders.filter(r => r.remindAt > now);
             saveReminders(remainingReminders);
         }
-    }, ms('1m'));
-    console.log('✅ Sistema de lembretes de +rep iniciado.');
+    }, ms('1m')); 
+    console.log('✅ Sistema de lembretes de +rep (direto no canal) iniciado.');
 }
 
 // ===== Evento de Bot Pronto =====
@@ -104,7 +114,7 @@ client.once('clientReady', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
     try {
         startVipMonitor(client);
-        startRepReminder(client); // Inicia o sistema de lembretes
+        startRepReminder(client);
     } catch (error) {
         console.error('❌ Falha ao iniciar monitores:', error);
     }
@@ -113,7 +123,9 @@ client.once('clientReady', () => {
 
 // ===== Evento de Mensagem (LÓGICA FINAL E COMPLETA) =====
 client.on('messageCreate', async message => {
-    if (message.author.bot || !message.guild) return;
+    // Permite que o bot processe mensagens da Loritta, mas ignora outros bots e DMs
+    if (message.author.bot && message.author.id !== '297153970613387264') return;
+    if (!message.guild) return;
 
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
@@ -168,32 +180,38 @@ client.on('messageCreate', async message => {
             sendLog(client, 'error', { commandName, error, guildName: message.guild.name, guildId: message.guild.id });
         }
     } else {
-        // --- Se NÃO for um comando, processa o ganho de moedas E o detector de +rep ---
+        // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
         
-        // DETECTOR DE +REP
-        if (message.content.toLowerCase().startsWith('+rep') && message.mentions.users.size > 0) {
-            if (!message.mentions.users.has(message.author.id)) {
-                const userId = message.author.id;
-                let reminders = loadReminders();
-                reminders = reminders.filter(r => r.userId !== userId);
-                reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
-                saveReminders(reminders);
-                try { await message.react('⏰'); } catch {}
+        // DETECTOR DE RESPOSTA DA LORITTA
+        if (message.author.id === '297153970613387264') { // ID da Loritta
+            const successMessage = "deu uma reputação para";
+            if (message.content.includes(successMessage) && message.mentions.users.size >= 1) {
+                const authorUser = message.mentions.users.first();
+                if (authorUser && !authorUser.bot) { // Garante que a primeira menção não é um bot
+                    const userId = authorUser.id;
+                    let reminders = loadReminders();
+                    reminders = reminders.filter(r => r.userId !== userId);
+                    reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
+                    saveReminders(reminders);
+                    try { await message.react('⏰'); } catch {}
+                }
             }
         }
         
-        // GANHO DE MOEDAS POR MENSAGEM
-        if (!economyCooldowns.has(message.author.id)) {
-            economyCooldowns.set(message.author.id, Date.now());
-            setTimeout(() => economyCooldowns.delete(message.author.id), 3000);
-            
-            let data = client.economy.loadEconomy();
-            const userId = message.author.id;
-            const userData = data[userId];
-            const currentBalance = userData?.balance || userData || 0;
-            const amount = Math.floor(Math.random() * 5) + 1;
-            data[userId] = currentBalance + amount;
-            client.economy.saveEconomy(data);
+        // GANHO DE MOEDAS POR MENSAGEM (apenas para usuários)
+        if (!message.author.bot) {
+            if (!economyCooldowns.has(message.author.id)) {
+                economyCooldowns.set(message.author.id, Date.now());
+                setTimeout(() => economyCooldowns.delete(message.author.id), 3000);
+                
+                let data = client.economy.loadEconomy();
+                const userId = message.author.id;
+                const userData = data[userId];
+                const currentBalance = userData?.balance || userData || 0;
+                const amount = Math.floor(Math.random() * 5) + 1;
+                data[userId] = currentBalance + amount;
+                client.economy.saveEconomy(data);
+            }
         }
     }
 });
