@@ -121,9 +121,8 @@ client.once('clientReady', () => {
 });
 
 
-// ===== Evento de Mensagem (LÓGICA FINAL E COMPLETA) =====
+// ===== Evento de Mensagem (COM DIAGNÓSTICO) =====
 client.on('messageCreate', async message => {
-    // Permite que o bot processe mensagens da Loritta, mas ignora outros bots e DMs
     if (message.author.bot && message.author.id !== '297153970613387264') return;
     if (!message.guild) return;
 
@@ -182,20 +181,43 @@ client.on('messageCreate', async message => {
     } else {
         // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
         
-        // DETECTOR DE RESPOSTA DA LORITTA
+        // DETECTOR DE RESPOSTA DA LORITTA (COM DIAGNÓSTICO)
         if (message.author.id === '297153970613387264') { // ID da Loritta
+            console.log("\n--- MENSAGEM DA LORITTA DETECTADA ---");
+            console.log(`[CONTEÚDO BRUTO]: ${message.content}`);
+            console.log(`[TEM EMBEDS?]: ${message.embeds.length > 0}`);
+            if (message.embeds.length > 0) {
+                console.log(`[DESCRIÇÃO DO EMBED]: ${message.embeds[0].description}`);
+            }
+            console.log(`[NÚMERO DE MENÇÕES]: ${message.mentions.users.size}`);
+            
             const successMessage = "deu uma reputação para";
-            if (message.content.includes(successMessage) && message.mentions.users.size >= 1) {
+            const hasSuccessTextInContent = message.content.includes(successMessage);
+            const hasSuccessTextInEmbed = message.embeds[0]?.description?.includes(successMessage);
+            console.log(`[CONTÉM A FRASE DE SUCESSO NO CONTEÚDO?]: ${hasSuccessTextInContent}`);
+            console.log(`[CONTÉM A FRASE DE SUCESSO NO EMBED?]: ${hasSuccessTextInEmbed}`);
+            
+            if ((hasSuccessTextInContent || hasSuccessTextInEmbed) && message.mentions.users.size >= 1) {
+                console.log("[VERIFICAÇÕES INICIAIS PASSARAM]");
                 const authorUser = message.mentions.users.first();
-                if (authorUser && !authorUser.bot) { // Garante que a primeira menção não é um bot
+                console.log(`[PRIMEIRA MENÇÃO ENCONTRADA]: ${authorUser?.tag || 'Nenhuma'}`);
+                
+                if (authorUser && !authorUser.bot) {
+                    console.log("[LÓGICA DE AGENDAMENTO INICIADA]");
                     const userId = authorUser.id;
                     let reminders = loadReminders();
                     reminders = reminders.filter(r => r.userId !== userId);
                     reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
                     saveReminders(reminders);
+                    console.log(`✅ [SUCESSO] Lembrete agendado para ${authorUser.tag}.`);
                     try { await message.react('⏰'); } catch {}
+                } else {
+                    console.log("❌ [FALHA] A primeira menção é um bot ou não foi encontrada.");
                 }
+            } else {
+                console.log("❌ [FALHA] As verificações iniciais (frase de sucesso ou número de menções) falharam.");
             }
+            console.log("--- FIM DO DEBUG DA LORITTA ---\n");
         }
         
         // GANHO DE MOEDAS POR MENSAGEM (apenas para usuários)
