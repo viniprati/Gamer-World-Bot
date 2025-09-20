@@ -181,7 +181,6 @@ client.on('messageCreate', async message => {
     } else {
         // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
         
-        // DETECTOR DE RESPOSTA DA LORITTA (CORRIGIDO)
         if (message.author.id === '297153970613387264') { // ID da Loritta
             const successMessage = "deu uma reputação para";
             if (message.content.includes(successMessage)) {
