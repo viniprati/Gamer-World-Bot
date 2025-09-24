@@ -5,12 +5,28 @@ const { sendLog } = require('../../logger');
 
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 const TRANSACTIONS_PATH = path.join(__dirname, '..', '..', 'transactions.json');
+const PREMIUM_PATH = path.join(__dirname, '..', '..', 'premium.json');
+
+const getPremiumUsers = () => {
+    try {
+        if (!fs.existsSync(PREMIUM_PATH)) return { users: [] };
+        const data = fs.readFileSync(PREMIUM_PATH, 'utf8');
+        const parsed = JSON.parse(data);
+        return (parsed && Array.isArray(parsed.users)) ? parsed : { users: [] };
+    } catch (error) {
+        console.error("Erro ao ler premium.json:", error);
+        return { users: [] };
+    }
+};
 
 module.exports = {
     name: 'daily',
-    description: 'Recebe moedas diariamente (a cada 24h).',
+    description: 'Recebe moedas diariamente.',
     cooldown: 10,
-    async execute(message, args, client) {
+    // ================== A CORREÇÃO ESTÁ AQUI ==================
+    // A ordem dos parâmetros foi corrigida para (client, message, args)
+    async execute(client, message, args) {
+    // ==========================================================
         let economy = {};
         if (fs.existsSync(ECONOMY_PATH)) {
             economy = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
@@ -24,6 +40,9 @@ module.exports = {
         const userId = message.author.id;
         const now = new Date();
 
+        const premiumData = getPremiumUsers();
+        const isPremium = premiumData.users.includes(userId);
+
         if (!transactions[userId]) transactions[userId] = [];
 
         const lastDaily = transactions[userId]
@@ -32,7 +51,11 @@ module.exports = {
 
         if (lastDaily) {
             const lastClaimTime = new Date(lastDaily.date).getTime();
-            const cooldown = 24 * 60 * 60 * 1000;
+            let cooldown = 24 * 60 * 60 * 1000;
+            if (isPremium) {
+                cooldown *= 0.90;
+            }
+
             const timePassed = now.getTime() - lastClaimTime;
 
             if (timePassed < cooldown) {
@@ -43,19 +66,16 @@ module.exports = {
             }
         }
 
-        const amountReceived = Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000;
-        const userData = economy[userId];
-
-        // A LÓGICA INTELIGENTE E DEFINITIVA
-        // Garante que 'currentBalance' será sempre um número.
-        const currentBalance = (userData && userData.balance) || userData || 0;
+        let amountReceived = Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000;
+        if (isPremium) {
+            amountReceived *= 2;
+        }
         
-        // A matemática agora é segura.
+        const userData = economy[userId];
+        const currentBalance = (userData && userData.balance) || userData || 0;
         const newBalance = currentBalance + amountReceived;
 
-        // Salva sempre como um número simples.
         economy[userId] = newBalance;
-        
         transactions[userId].push({ type: 'daily', amount: amountReceived, date: now.toISOString() });
 
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economy, null, 2));
@@ -68,11 +88,11 @@ module.exports = {
         });
 
         const embed = new EmbedBuilder()
-            .setColor('Green')
+            .setColor(isPremium ? '#FFD700' : 'Green')
             .setTitle('🎁 Daily Resgatado!')
             .setDescription(`Você recebeu **${amountReceived.toLocaleString('pt-BR')} moedas**!`)
             .addFields({ name: '💰 Saldo Atual', value: `${newBalance.toLocaleString('pt-BR')} moedas` })
-            .setFooter({ text: 'Volte amanhã para mais recompensas.' })
+            .setFooter({ text: isPremium ? '✨ Bônus Premium Ativado!' : 'Volte amanhã para mais recompensas.' })
             .setTimestamp();
 
         message.reply({ embeds: [embed] });
