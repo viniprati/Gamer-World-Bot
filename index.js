@@ -153,7 +153,7 @@ client.once('clientReady', () => {
 });
 
 
-// ===== Evento de Mensagem (COM A CORREÇÃO FINAL PARA LORITTA) =====
+// ===== Evento de Mensagem =====
 client.on('messageCreate', async message => {
     if (message.author.bot && message.author.id !== '297153970613387264') return;
     if (!message.guild) return;
