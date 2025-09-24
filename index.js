@@ -204,7 +204,10 @@ client.on('messageCreate', async message => {
 
         // Execução do Comando
         try {
-            await command.execute(message, args, client);
+            // ================== A CORREÇÃO ESTÁ AQUI ==================
+            // A ordem dos parâmetros foi corrigida para (client, message, args)
+            await command.execute(client, message, args);
+            // ==========================================================
         } catch (error) {
             console.error(`Erro no comando '${commandName}':`, error);
             message.reply('❌ Ops! Ocorreu um erro inesperado.');
