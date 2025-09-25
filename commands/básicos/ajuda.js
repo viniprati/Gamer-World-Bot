@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { prefix } = require('../../config.json');
@@ -7,15 +7,32 @@ const categoryEmojis = {
     'Básicos': '⚙️',
     'Economia': '💰',
     'Gerais': '🌐',
-    'Moderação': '🛡️'
+    'Moderação': '🛡️',
+    'premiumBot': '🌟' // Adicione outras categorias se necessário
 };
 
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('ajuda')
+        .setDescription('Mostra uma lista interativa de todos os comandos.'),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'ajuda',
     aliases: ['help', 'comandos'],
     description: 'Mostra uma lista interativa de todos os comandos.',
     cooldown: 10,
-    async execute(message, args, client) {
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+        const author = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
+        const guild = isSlash ? interactionOrMessage.guild : interactionOrMessage.guild;
+        const reply = (options) => {
+            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.channel.send(options);
+        };
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
         const commandsPath = path.join(__dirname, '..', '..', 'commands');
         const commandFolders = fs.readdirSync(commandsPath).filter(folder => 
             fs.lstatSync(path.join(commandsPath, folder)).isDirectory()
@@ -30,8 +47,10 @@ module.exports = {
                 .map(file => {
                     try {
                         const command = require(path.join(folderPath, file));
-                        if (command.name && command.description) {
-                            return `**\`${prefix}${command.name}\`**\n*${command.description}*`;
+                        // Prioriza a descrição do slash command se existir
+                        const description = command.data?.description || command.description;
+                        if (command.name && description) {
+                            return `**\`${prefix}${command.name}\`**\n*${description}*`;
                         }
                     } catch {}
                     return null;
@@ -68,24 +87,26 @@ module.exports = {
 
         const initialEmbed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle(`🎮 Central de Comandos - ${message.guild.name}`)
+            .setTitle(`🎮 Central de Comandos - ${guild.name}`) // Alterado
             .setDescription('Bem-vindo à central de ajuda!\n\nUse o menu abaixo para navegar pelas diferentes categorias de comandos e descobrir tudo que eu posso fazer.')
-            .setThumbnail(message.guild.iconURL({ dynamic: true }))
+            .setThumbnail(guild.iconURL({ dynamic: true })) // Alterado
             .setFooter({ text: 'Este menu expira em 5 minutos.' });
 
-        const response = await message.channel.send({
+        const response = await reply({
             embeds: [initialEmbed],
             components: [row]
         });
+        
+        const message = isSlash ? await interactionOrMessage.fetchReply() : response;
 
-        const collector = response.createMessageComponentCollector({
+        const collector = message.createMessageComponentCollector({
             time: 5 * 60 * 1000 // 5 minutos
         });
 
         collector.on('collect', async (interaction) => {
-            // CORRIGIDO: Substituído 'ephemeral: true' pela sintaxe 'flags'
-            if (interaction.user.id !== message.author.id) {
-                return interaction.reply({ content: 'Apenas o autor do comando pode usar este menu.', flags: [MessageFlags.Ephemeral] });
+            // A verificação de permissão agora usa a variável unificada 'author'
+            if (interaction.user.id !== author.id) {
+                return interaction.reply({ content: 'Apenas o autor do comando pode usar este menu.', ephemeral: true });
             }
             
             if (interaction.isButton() && interaction.customId === 'home_button') {
@@ -103,7 +124,7 @@ module.exports = {
                     .setTitle(`${categoryEmoji} Comandos de ${selectedCategory}`)
                     .setDescription(commandsText)
                     .setTimestamp()
-                    .setFooter({ text: `Solicitado por ${message.author.tag}` });
+                    .setFooter({ text: `Solicitado por ${author.tag}` }); // Alterado
                     
                 await interaction.update({ embeds: [categoryEmbed], components: [row, homeRow] });
             }
@@ -113,8 +134,8 @@ module.exports = {
             const expiredEmbed = new EmbedBuilder()
                 .setColor('#95a5a6')
                 .setTitle('📖 Central de Ajuda')
-                .setDescription('Este menu de ajuda expirou. Por favor, use o comando `!ajuda` novamente se precisar.');
-            response.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {});
+                .setDescription('Este menu de ajuda expirou. Por favor, use o comando `!ajuda` ou `/ajuda` novamente se precisar.');
+            message.edit({ embeds: [expiredEmbed], components: [] }).catch(() => {});
         });
     },
 };
