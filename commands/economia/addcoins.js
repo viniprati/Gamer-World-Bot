@@ -1,25 +1,52 @@
+const { SlashCommandBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { sendLog } = require('../../logger.js');
 
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
-let changeCounter = 0;
 
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('addcoins')
+        .setDescription('Adiciona moedas a um usuário (somente staff).')
+        .addUserOption(option =>
+            option.setName('usuario')
+                .setDescription('O usuário que receberá as moedas.')
+                .setRequired(true))
+        .addIntegerOption(option =>
+            option.setName('quantidade')
+                .setDescription('A quantidade de moedas a ser adicionada.')
+                .setRequired(true)
+                .setMinValue(1)),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'addcoins',
     description: 'Adiciona moedas a um usuário (somente pessoas autorizadas).',
-    cooldown: 5, 
-    async execute(message, args, client) {
+    cooldown: 5,
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+        const author = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
+        
+        const target = isSlash ? interactionOrMessage.options.getMember('usuario') : interactionOrMessage.mentions.members.first();
+        const amountToAdd = isSlash ? interactionOrMessage.options.getInteger('quantidade') : parseInt(args[1]);
+        
+        const reply = (options) => {
+            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.reply(options);
+        };
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
+        // Lógica de permissão (coloque os IDs da sua staff aqui)
         const allowedUsers = ['1077723832036630528', '983870132063453235', '820041555443449856', '1109255544495145021'];
-        if (!allowedUsers.includes(message.author.id)) {
-            return message.reply('❌ Você não tem permissão para usar este comando.');
+        if (!allowedUsers.includes(author.id)) {
+            return reply({ content: '❌ Você não tem permissão para usar este comando.', ephemeral: isSlash });
         }
 
-        const target = message.mentions.members.first();
-        const amount = parseInt(args[1]);
-
-        if (!target) return message.reply('Mencione o usuário para adicionar moedas.');
-        if (isNaN(amount) || amount <= 0) return message.reply('Digite um valor válido.');
+        // Validações
+        if (!target) return reply('Mencione o usuário ou selecione a opção para adicionar moedas.');
+        if (isNaN(amountToAdd) || amountToAdd <= 0) return reply('Digite um valor válido e positivo.');
 
         let economyData = {};
         if (fs.existsSync(ECONOMY_PATH)) {
@@ -29,39 +56,21 @@ module.exports = {
         const targetId = target.id;
         const userData = economyData[targetId];
 
-        // LÓGICA DE LEITURA INTELIGENTE E À PROVA DE FALHAS
-        // Garante que 'currentBalance' seja sempre um número, não importa o que esteja no JSON.
-        const currentBalance = (userData && userData.balance) || userData || 0;
-        
-        // A matemática agora é segura.
-        const newBalance = currentBalance + amount;
+        const currentBalance = userData?.balance || userData || 0;
+        const newBalance = currentBalance + amountToAdd;
 
-        // SALVA SEMPRE COMO UM NÚMERO SIMPLES, MANTENDO O SISTEMA REVERTIDO
         economyData[targetId] = newBalance;
         
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
 
-        // Envia o log, que já espera um número.
         await sendLog(client, "economy", { 
             userId: targetId, 
-            action: `Moedas adicionadas por Staff (${message.author.tag})`,
-            amount: amount, 
+            action: `Moedas adicionadas por Staff (${author.tag})`,
+            amount: amountToAdd, 
             newBalance: newBalance
         });
 
-        // Lógica de backup (mantida)
-        changeCounter++;
-        if (changeCounter >= 20) {
-            const guild = client.guilds.cache.get("1251297674058137751");
-            const channel = guild?.channels.cache.get("1415447984778252390");
-            if (channel) {
-                await channel.send({ content: "📄 Backup do economy.json", files: [ECONOMY_PATH] });
-            }
-            changeCounter = 0;
-        }
-
         const fmt = (n) => n.toLocaleString('pt-BR');
-        // A resposta usa a variável 'newBalance' que é garantidamente um número.
-        message.reply(`✅ Adicionadas **${fmt(amount)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
+        await reply(`✅ Adicionadas **${fmt(amountToAdd)} moedas** para ${target.user.tag}. Agora ele tem **${fmt(newBalance)} moedas**.`);
     },
 };
