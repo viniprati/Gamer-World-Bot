@@ -1,12 +1,14 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { EmbedBuilder } = require('discord.js');
 const { sendLog } = require('../../logger');
 
+// Caminhos para os arquivos de dados
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 const TRANSACTIONS_PATH = path.join(__dirname, '..', '..', 'transactions.json');
 const PREMIUM_PATH = path.join(__dirname, '..', '..', 'premium.json');
 
+// Função para ler usuários premium (sem alteração)
 const getPremiumUsers = () => {
     try {
         if (!fs.existsSync(PREMIUM_PATH)) return { users: [] };
@@ -20,13 +22,26 @@ const getPremiumUsers = () => {
 };
 
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('daily')
+        .setDescription('Resgate sua recompensa diária de moedas.'),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'daily',
     description: 'Recebe moedas diariamente.',
     cooldown: 10,
-    // ================== A CORREÇÃO ESTÁ AQUI ==================
-    // A ordem dos parâmetros foi corrigida para (client, message, args)
-    async execute(client, message, args) {
-    // ==========================================================
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+        const user = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
+        const reply = (options) => {
+            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.reply(options);
+        };
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
+        // A partir daqui, o resto do código usa as variáveis unificadas 'user' e 'reply'.
         let economy = {};
         if (fs.existsSync(ECONOMY_PATH)) {
             economy = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
@@ -37,7 +52,7 @@ module.exports = {
             transactions = JSON.parse(fs.readFileSync(TRANSACTIONS_PATH, 'utf8'));
         }
 
-        const userId = message.author.id;
+        const userId = user.id; // Alterado de message.author.id
         const now = new Date();
 
         const premiumData = getPremiumUsers();
@@ -62,7 +77,8 @@ module.exports = {
                 const timeLeft = cooldown - timePassed;
                 const hours = Math.floor(timeLeft / (1000 * 60 * 60));
                 const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                return message.reply(`⏳ Você já resgatou seu **daily**! Tente novamente em **${hours}h ${minutes}m**.`);
+                // Alterado para usar a função de resposta unificada 'reply'
+                return reply(`⏳ Você já resgatou seu **daily**! Tente novamente em **${hours}h ${minutes}m**.`);
             }
         }
 
@@ -95,6 +111,7 @@ module.exports = {
             .setFooter({ text: isPremium ? '✨ Bônus Premium Ativado!' : 'Volte amanhã para mais recompensas.' })
             .setTimestamp();
 
-        message.reply({ embeds: [embed] });
+        // Alterado para usar a função de resposta unificada 'reply'
+        await reply({ embeds: [embed] });
     }
 };

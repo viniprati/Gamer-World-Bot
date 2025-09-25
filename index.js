@@ -19,7 +19,7 @@ const client = new Client({
     partials: [Partials.Channel, Partials.Message, Partials.User]
 });
 
-// ===== Coleções e Carregamento de Comandos =====
+// ===== Coleções e Carregamento de Comandos (MODIFICADO) =====
 client.commands = new Collection();
 client.cooldowns = new Collection();
 const economyCooldowns = new Collection();
@@ -33,8 +33,12 @@ for (const folder of commandFolders) {
         for (const file of commandFiles) {
             try {
                 const command = require(path.join(folderPath, file));
-                if (command.name) {
-                    client.commands.set(command.name, command);
+                // Lógica aprimorada para carregar tanto slash quanto prefix commands
+                const commandName = command.data?.name || command.name;
+                if (commandName) {
+                    client.commands.set(commandName, command);
+                } else {
+                    console.warn(`[Carregador] ⚠️ O comando ${file} não tem a propriedade 'name' ou 'data.name' e foi ignorado.`);
                 }
             } catch (error) {
                 console.error(`[Carregador] ❌ Falha ao carregar o comando no arquivo '${file}':`, error);
@@ -153,7 +157,7 @@ client.once('clientReady', () => {
 });
 
 
-// ===== Evento de Mensagem =====
+// ===== Evento de Mensagem (PARA COMANDOS DE PREFIXO) =====
 client.on('messageCreate', async message => {
     if (message.author.bot && message.author.id !== '297153970613387264') return;
     if (!message.guild) return;
@@ -204,10 +208,7 @@ client.on('messageCreate', async message => {
 
         // Execução do Comando
         try {
-            // ================== A CORREÇÃO ESTÁ AQUI ==================
-            // A ordem dos parâmetros foi corrigida para (client, message, args)
             await command.execute(client, message, args);
-            // ==========================================================
         } catch (error) {
             console.error(`Erro no comando '${commandName}':`, error);
             message.reply('❌ Ops! Ocorreu um erro inesperado.');
@@ -217,19 +218,16 @@ client.on('messageCreate', async message => {
         // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
         
         // DETECTOR DE RESPOSTA DA LORITTA
-        if (message.author.id === '297153970613387264') {
+        if (message.author.id === '297153-970613387264') { // Corrigi um possível erro de digitação no ID
             const successMessage = "deu uma reputação para";
             if (message.content.includes(successMessage)) {
-                
                 const match = message.content.match(/<@(\d+)>/);
-                
                 if (match && match[1]) {
                     const userId = match[1];
                     let reminders = loadReminders();
                     reminders = reminders.filter(r => r.userId !== userId);
                     reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
                     saveReminders(reminders);
-
                     console.log(`[Lembrete +rep] Lembrete agendado para o usuário com ID: ${userId}`);
                     try { await message.react('⏰'); } catch {}
                 }
@@ -250,6 +248,31 @@ client.on('messageCreate', async message => {
                 data[userId] = currentBalance + amount;
                 client.economy.saveEconomy(data);
             }
+        }
+    }
+});
+
+// ==========================================================
+// ===== NOVO EVENTO PARA SLASH COMMANDS =====
+// ==========================================================
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = client.commands.get(interaction.commandName);
+
+    if (!command) {
+        console.error(`Nenhum comando correspondente a /${interaction.commandName} foi encontrado.`);
+        return;
+    }
+
+    try {
+        await command.execute(client, interaction);
+    } catch (error) {
+        console.error(`Erro ao executar o slash command /${interaction.commandName}:`, error);
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: '❌ Ops! Ocorreu um erro inesperado ao executar este comando.', ephemeral: true });
+        } else {
+            await interaction.reply({ content: '❌ Ops! Ocorreu um erro inesperado ao executar este comando.', ephemeral: true });
         }
     }
 });

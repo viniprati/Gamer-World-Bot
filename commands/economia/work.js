@@ -1,15 +1,14 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { EmbedBuilder } = require('discord.js');
 const { sendLog } = require('../../logger');
 
-// Define os caminhos para os arquivos
+// Caminhos para os arquivos
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 const COOLDOWN_PATH = path.join(__dirname, '..', '..', 'work_cooldowns.json');
-// --- NOVA LINHA ---: Adicionando o caminho para o arquivo premium
 const PREMIUM_PATH = path.join(__dirname, '..', '..', 'premium.json');
 
-// --- NOVA FUNÇÃO ---: Função de segurança para ler a lista de usuários premium
+// Função para ler usuários premium (sem alteração)
 const getPremiumUsers = () => {
     try {
         if (!fs.existsSync(PREMIUM_PATH)) return { users: [] };
@@ -53,23 +52,35 @@ function saveJsonSafe(filePath, data) {
 }
 
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('work')
+        .setDescription('Trabalhe para ganhar moedas.'),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'work',
     aliases: ['trabalhar'],
     description: 'Trabalhe para ganhar moedas.',
     cooldown: 15,
-    // --- ALTERAÇÃO CRÍTICA ---: A ordem dos parâmetros foi corrigida para (client, message, args)
-    async execute(client, message, args) {
-        const userId = message.author.id;
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+        const user = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
+        const reply = (options) => {
+            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.reply(options);
+        };
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
+        const userId = user.id; // Alterado para usar a variável unificada 'user'
         const now = Date.now();
 
-        // --- LÓGICA PREMIUM ---: Verifica o status do usuário no início
         const premiumData = getPremiumUsers();
         const isPremium = premiumData.users.includes(userId);
 
-        // --- LÓGICA DE COOLDOWN ALTERADA ---: O cooldown agora é uma variável
-        let cooldownDuration = 1 * 60 * 60 * 1000; // 1 hora padrão
+        let cooldownDuration = 1 * 60 * 60 * 1000;
         if (isPremium) {
-            cooldownDuration *= 0.90; // Reduz o cooldown em 10% para premium
+            cooldownDuration *= 0.90;
         }
 
         const cooldowns = loadJsonSafe(COOLDOWN_PATH);
@@ -81,17 +92,16 @@ module.exports = {
             const cooldownEmbed = new EmbedBuilder()
                 .setColor('#E67E22')
                 .setTitle('🔋 Energia Recarregando...')
-                .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
+                .setAuthor({ name: user.username, iconURL: user.displayAvatarURL() }) // Alterado
                 .setDescription(`Haja com calma, campeão! Suas energias precisam ser recarregadas antes do próximo turno.`)
                 .addFields({ name: 'Disponível Novamente', value: `Seu próximo trabalho estará disponível ${nextWorkTimestamp}.` })
                 .setTimestamp();
-            return message.reply({ embeds: [cooldownEmbed] });
+            return reply({ embeds: [cooldownEmbed] }); // Alterado
         }
 
-        // --- LÓGICA DE RECOMPENSA ALTERADA ---: O ganho agora é uma variável
         let amountEarned = Math.floor(Math.random() * (2000 - 500 + 1)) + 500;
         if (isPremium) {
-            amountEarned *= 2; // Dobra a recompensa para premium
+            amountEarned *= 2;
         }
 
         const economy = loadJsonSafe(ECONOMY_PATH);
@@ -114,12 +124,11 @@ module.exports = {
         const chosenWork = workOptions[Math.floor(Math.random() * workOptions.length)];
         const formattedMessage = chosenWork.message.replace('{amount}', `**${amountEarned.toLocaleString('pt-BR')}**`);
 
-        // --- EMBED DE SUCESSO ALTERADO ---: Reage ao status premium
         const embed = new EmbedBuilder()
-            .setColor(isPremium ? '#FFD700' : chosenWork.color) // Cor dourada para premium
+            .setColor(isPremium ? '#FFD700' : chosenWork.color)
             .setTitle(chosenWork.title)
-            .setAuthor({ name: `Diário de Missão de ${message.author.username}`, iconURL: message.author.displayAvatarURL() })
-            .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+            .setAuthor({ name: `Diário de Missão de ${user.username}`, iconURL: user.displayAvatarURL() }) // Alterado
+            .setThumbnail(user.displayAvatarURL({ dynamic: true })) // Alterado
             .setDescription(formattedMessage)
             .addFields(
                 { name: '✅ Recompensa', value: `+ **${amountEarned.toLocaleString('pt-BR')}** GameCoins`, inline: true },
@@ -128,6 +137,6 @@ module.exports = {
             .setTimestamp()
             .setFooter({ text: isPremium ? '✨ Bônus Premium Ativado!' : 'Missão concluída com sucesso!' });
             
-        message.reply({ embeds: [embed] });
+        await reply({ embeds: [embed] }); // Alterado
     },
 };

@@ -1,12 +1,13 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-
-const ECONOMY_PATH = path.join(__dirname, '../../economy.json');
-const VIPS_PATH = path.join(__dirname, '../../vips.json');
 const { sendLog } = require('../../logger');
 
-// Funções de leitura/escrita de JSON (mantidas)
+// Caminhos para os arquivos
+const ECONOMY_PATH = path.join(__dirname, '../../economy.json');
+const VIPS_PATH = path.join(__dirname, '../../vips.json');
+
+// Funções de leitura/escrita de JSON (sem alterações)
 function loadJsonSafe(filePath, fallback) {
     try {
         if (!fs.existsSync(filePath)) {
@@ -29,20 +30,34 @@ function saveJsonSafe(filePath, data) {
     }
 }
 
-
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('loja')
+        .setDescription('Mostra a loja de VIPs e permite comprar pelo menu.'),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'loja',
     description: 'Mostra a loja de VIPs e permite comprar pelo menu.',
-    cooldown: 15, // Adicionado um cooldown para prevenir spam
-    async execute(message, args, client) {
+    cooldown: 15,
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+        const reply = (options) => {
+            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.channel.send(options);
+        };
+        const guild = isSlash ? interactionOrMessage.guild : interactionOrMessage.guild;
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🏪 Loja de VIPs')
             .setDescription('Selecione abaixo o VIP que deseja comprar. Você precisa ter moedas suficientes.')
             .addFields(
-                { name: '💎 VIP Diamante — 200000 moedas', value: 'Benefícios: +2 VIP Ouro, XP 2.5x, pay 10h, 7 sorteios', inline: false },
-                { name: '🥇 VIP Ouro — 160000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
-                { name: '🥈 VIP Prata — 80000 moedas', value: 'Benefícios: XP 1.5x, pay 2h, categoria VIP, 2 sorteios', inline: false }
+                { name: '💎 VIP Diamante — 200.000 moedas', value: 'Benefícios: +2 VIP Ouro, XP 2.5x, pay 10h, 7 sorteios', inline: false },
+                { name: '🥇 VIP Ouro — 160.000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
+                { name: '🥈 VIP Prata — 80.000 moedas', value: 'Benefícios: XP 1.5x, pay 2h, categoria VIP, 2 sorteios', inline: false }
             )
             .setFooter({ text: 'Economize suas moedas e garanta seu VIP!' });
 
@@ -50,17 +65,22 @@ module.exports = {
             .setCustomId('select_vip')
             .setPlaceholder('Selecione um VIP...')
             .addOptions(
-                { label: '🥈 VIP Prata', description: 'Custa 80000 moedas', value: 'prata' },
-                { label: '🥇 VIP Ouro', description: 'Custa 160000 moedas', value: 'ouro' },
-                { label: '💎 VIP Diamante', description: 'Custa 200000 moedas', value: 'diamante' }
+                { label: '🥈 VIP Prata', description: 'Custa 80.000 moedas', value: 'prata' },
+                { label: '🥇 VIP Ouro', description: 'Custa 160.000 moedas', value: 'ouro' },
+                { label: '💎 VIP Diamante', description: 'Custa 200.000 moedas', value: 'diamante' }
             );
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
-        const msg = await message.channel.send({ embeds: [embed], components: [row] });
 
-        const collector = msg.createMessageComponentCollector({ time: 5 * 60 * 1000 });
+        // Usa a função de resposta unificada para enviar a mensagem inicial
+        const response = await reply({ embeds: [embed], components: [row] });
+        // Pega a mensagem de resposta de forma segura para atachar o coletor
+        const message = isSlash ? await interactionOrMessage.fetchReply() : response;
+
+        const collector = message.createMessageComponentCollector({ time: 5 * 60 * 1000 }); // 5 minutos
 
         collector.on('collect', async i => {
+            // A lógica interna do coletor não precisa de muitas mudanças
             if (i.customId !== 'select_vip') return;
 
             const vipRoles = {
@@ -71,48 +91,38 @@ module.exports = {
 
             const choice = i.values[0];
             const vip = vipRoles[choice];
-            if (!vip) return i.reply({ content: 'Opção inválida.', flags: [MessageFlags.Ephemeral] });
+            if (!vip) return i.reply({ content: 'Opção inválida.', ephemeral: true });
 
             const economy = loadJsonSafe(ECONOMY_PATH, {});
             const userId = i.user.id;
             const userData = economy[userId];
-
-            // A CORREÇÃO DEFINITIVA: LÓGICA DE LEITURA INTELIGENTE
-            // Garante que 'balance' será sempre um número, não importa o que esteja no JSON.
             const balance = (userData && userData.balance) || userData || 0;
 
             if (balance < vip.price) {
-                return i.reply({ content: `❌ Você não tem moedas suficientes. (Saldo: ${balance.toLocaleString('pt-BR')})`, flags: [MessageFlags.Ephemeral] });
+                return i.reply({ content: `❌ Você não tem moedas suficientes. (Saldo: ${balance.toLocaleString('pt-BR')})`, ephemeral: true });
             }
 
-            // A matemática agora é segura
             const newBalance = balance - vip.price;
-            
-            // Salva sempre como um número simples, mantendo o sistema revertido
             economy[userId] = newBalance;
             saveJsonSafe(ECONOMY_PATH, economy);
 
-            const guild = message.guild;
             const member = await guild.members.fetch(userId).catch(() => null);
             if (!member) {
-                return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', flags: [MessageFlags.Ephemeral] });
+                return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', ephemeral: true });
             }
 
             const role = guild.roles.cache.get(vip.id);
             if (!role) {
-                return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', flags: [MessageFlags.Ephemeral] });
+                return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', ephemeral: true });
             }
 
             await member.roles.add(role).catch(err => {
                 console.error("Erro ao adicionar cargo VIP:", err);
-                return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', flags: [MessageFlags.Ephemeral] });
+                return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', ephemeral: true });
             });
 
-            // Lógica de salvar vips.json (mantida)
             let vips = loadJsonSafe(VIPS_PATH, []);
-            if (!Array.isArray(vips)) {
-                vips = [];
-            }
+            if (!Array.isArray(vips)) vips = [];
             const now = Date.now();
             const monthMs = 30 * 24 * 60 * 60 * 1000;
             const existingIndex = vips.findIndex(e => e.userId === userId && e.guildId === guild.id && e.roleId === vip.id);
@@ -131,11 +141,11 @@ module.exports = {
             sendLog(client, "vip", { userId, vipName: vip.name });
 
             const expiresDate = new Date(expiresAt).toLocaleString('pt-BR');
-            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price.toLocaleString('pt-BR')} moedas**.\n💰 Saldo restante: **${newBalance.toLocaleString('pt-BR')}**.\n⏳ VIP expira em: **${expiresDate}**.`, flags: [MessageFlags.Ephemeral] });
+            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price.toLocaleString('pt-BR')} moedas**.\n💰 Saldo restante: **${newBalance.toLocaleString('pt-BR')}**.\n⏳ VIP expira em: **${expiresDate}**.`, ephemeral: true });
         });
 
         collector.on('end', () => {
-            msg.edit({ components: [] }).catch(() => {});
+            message.edit({ components: [] }).catch(() => {});
         });
     },
 };

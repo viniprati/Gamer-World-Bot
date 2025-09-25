@@ -1,16 +1,41 @@
-const { EmbedBuilder } = require('discord.js');
-// CORRIGIDO: O caminho agora é './' pois os arquivos estão na mesma pasta 'gerais'.
-const { getBadges } = require('./badgeManager.js'); 
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+// LINHA NOVA E CORRETA
+const { getBadges } = require('../../utils/badgeManager.js'); 
 const fs = require('fs');
 const path = require('path');
 
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('userinfo')
+        .setDescription('Mostra o perfil de jogador de um membro do servidor.')
+        .addUserOption(option =>
+            option.setName('usuario')
+                .setDescription('O usuário que você quer ver o perfil (opcional).')
+                .setRequired(false)),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'userinfo',
     aliases: ['profile', 'perfil'],
     description: 'Mostra o perfil de jogador de um membro do servidor.',
     cooldown: 10,
-    async execute(message, args, client) {
-        const member = message.mentions.members.first() || message.member;
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+
+        const member = isSlash
+            ? (interactionOrMessage.options.getMember('usuario') || interactionOrMessage.member)
+            : (interactionOrMessage.mentions.members.first() || interactionOrMessage.member);
+
+        const guild = isSlash ? interactionOrMessage.guild : interactionOrMessage.guild;
+
+        const reply = (options) => {
+            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.channel.send(options);
+        };
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
+        // O resto do seu código permanece praticamente idêntico.
         const user = await client.users.fetch(member.id, { force: true });
 
         // --- Leitura de Dados de Economia e Ranking ---
@@ -38,7 +63,7 @@ module.exports = {
         const joinedAtTimestamp = `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:R>`;
 
         const roles = member.roles.cache
-            .filter(role => role.id !== message.guild.id)
+            .filter(role => role.id !== guild.id) // Alterado para a variável 'guild'
             .sort((a, b) => b.position - a.position)
             .map(role => role.toString());
         
@@ -69,6 +94,6 @@ module.exports = {
             embed.setImage(user.bannerURL({ dynamic: true, size: 512 }));
         }
 
-        await message.channel.send({ embeds: [embed] });
+        await reply({ embeds: [embed] });
     },
 };

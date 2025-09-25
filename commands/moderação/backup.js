@@ -1,72 +1,96 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { EmbedBuilder } = require('discord.js');
-// Importa os IDs do seu arquivo de configuração
 const { LOG_SERVER_ID, BACKUP_CHANNEL_ID } = require('../../config.json');
 
-// Define o caminho para o arquivo que será "backupeado"
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 
 module.exports = {
+    // --- NOVO: Definição para o Slash Command ---
+    data: new SlashCommandBuilder()
+        .setName('backup')
+        .setDescription('Força um backup manual do arquivo de economia (somente staff).'),
+
+    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'backup',
     description: 'Força um backup manual do arquivo de economia (somente staff autorizada).',
-    cooldown: 60, // Cooldown de 1 minuto para evitar spam
-    async execute(message, args, client) {
-        // ===================================================================
-        // COLOQUE AQUI OS IDs DOS USUÁRIOS AUTORIZADOS
-        // ===================================================================
+    cooldown: 60,
+
+    async execute(client, interactionOrMessage, args) {
+        // --- NOVO: Camada de Abstração ---
+        const isSlash = interactionOrMessage.isChatInputCommand?.();
+        const author = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
+        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+        
         const allowedUsers = [
-            '1077723832036630528', // Dago
-            '983870132063453235',  // Prati
-            '820041555443449856',  // Gb
-            '1109255544495145021'  // Prince
-            // Adicione seu ID aqui também se não estiver na lista!
+            '1077723832036630528', '983870132063453235',
+            '820041555443449856', '1109255544495145021'
         ];
 
-        if (!allowedUsers.includes(message.author.id)) {
-            return message.reply('❌ Você não tem permissão para usar este comando.');
+        if (!allowedUsers.includes(author.id)) {
+            const replyOptions = { content: '❌ Você não tem permissão para usar este comando.' };
+            if (isSlash) replyOptions.ephemeral = true;
+            return isSlash ? interactionOrMessage.reply(replyOptions) : interactionOrMessage.reply(replyOptions);
         }
 
-        // Verifica se o arquivo de economia existe
         if (!fs.existsSync(ECONOMY_PATH)) {
-            return message.reply('❌ Não foi possível encontrar o arquivo `economy.json` para fazer o backup.');
+            const replyOptions = { content: '❌ Não foi possível encontrar o arquivo `economy.json` para fazer o backup.' };
+            if (isSlash) replyOptions.ephemeral = true;
+            return isSlash ? interactionOrMessage.reply(replyOptions) : interactionOrMessage.reply(replyOptions);
         }
 
         try {
-            // Informa ao usuário que o processo começou
-            const initialReply = await message.reply('⏳ Forçando um backup manual do `economy.json`. Aguarde...');
+            // Unifica a resposta inicial, adiando a do slash command para dar tempo ao bot
+            if (isSlash) {
+                await interactionOrMessage.deferReply({ ephemeral: true });
+            }
+            const initialReply = isSlash ? null : await interactionOrMessage.reply('⏳ Forçando um backup manual... Aguarde...');
 
-            // Busca o servidor e o canal de logs
             const guild = await client.guilds.fetch(LOG_SERVER_ID);
             if (!guild) {
-                return initialReply.edit('❌ Não foi possível encontrar o servidor de logs.');
+                const errorMsg = '❌ Não foi possível encontrar o servidor de logs.';
+                return isSlash ? interactionOrMessage.editReply(errorMsg) : initialReply.edit(errorMsg);
             }
 
             const channel = await guild.channels.fetch(BACKUP_CHANNEL_ID);
             if (!channel) {
-                return initialReply.edit('❌ Não foi possível encontrar o canal de backups no servidor de logs.');
+                const errorMsg = '❌ Não foi possível encontrar o canal de backups no servidor de logs.';
+                return isSlash ? interactionOrMessage.editReply(errorMsg) : initialReply.edit(errorMsg);
             }
 
-            // Envia o arquivo para o canal de backup
             await channel.send({
-                content: `📄 **Backup Manual Forçado**\nSolicitado por: ${message.author.tag} (\`${message.author.id}\`)`,
+                content: `📄 **Backup Manual Forçado**\nSolicitado por: ${author.tag} (\`${author.id}\`)`,
                 files: [ECONOMY_PATH],
             });
 
-            // Cria um embed de confirmação para o usuário
             const successEmbed = new EmbedBuilder()
-                .setColor('#2ECC71') // Verde
+                .setColor('#2ECC71')
                 .setTitle('✅ Backup Realizado com Sucesso!')
-                .setDescription(`O arquivo \`economy.json\` foi enviado com sucesso para o canal de backups <#${BACKUP_CHANNEL_ID}>.`)
+                .setDescription(`O arquivo \`economy.json\` foi enviado com sucesso para o canal <#${BACKUP_CHANNEL_ID}>.`)
                 .setTimestamp()
-                .setFooter({ text: `Ação realizada por ${message.author.username}` });
+                .setFooter({ text: `Ação realizada por ${author.username}` });
 
-            // Edita a mensagem inicial com a confirmação
-            await initialReply.edit({ content: '', embeds: [successEmbed] });
+            // Unifica a resposta final de sucesso
+            if (isSlash) {
+                await interactionOrMessage.editReply({ embeds: [successEmbed] });
+            } else {
+                await initialReply.edit({ content: '', embeds: [successEmbed] });
+            }
 
         } catch (error) {
             console.error('❌ Falha ao executar o comando de backup manual:', error);
-            message.reply('❌ Ocorreu um erro crítico ao tentar enviar o backup. Verifique os logs do console.');
+            const errorMsg = '❌ Ocorreu um erro crítico ao tentar enviar o backup. Verifique os logs do console.';
+            if (isSlash) {
+                // Se a resposta já foi deferida, usa editReply, senão, reply
+                if (interactionOrMessage.deferred || interactionOrMessage.replied) {
+                    await interactionOrMessage.editReply({ content: errorMsg, ephemeral: true });
+                } else {
+                    await interactionOrMessage.reply({ content: errorMsg, ephemeral: true });
+                }
+            } else {
+                await interactionOrMessage.reply(errorMsg);
+
+            }
         }
     },
 };
