@@ -20,6 +20,11 @@ const BADGES_CONFIG = [
         condition: (member) => staffRoles.some(id => member.roles.cache.has(id))
     },
     {
+        emoji: '🚀', name: 'Server Booster',
+        description: 'Impulsionar o servidor com Discord Nitro.',
+        condition: (member) => member.roles.cache.has('269613958988562433')
+    },
+    {
         emoji: '🎖️', name: 'Apoiador Inicial',
         description: 'Ter o cargo de Apoiador Inicial.',
         condition: (member) => member.roles.cache.has('1396916524551372800')
@@ -84,9 +89,7 @@ const BADGES_CONFIG = [
     },
 ];
 
-// ===================================================================
-// FUNÇÕES EXPORTADAS
-// ===================================================================
+
 
 function getBadges(member, userData = {}, topRanking = 0) {
     const badges = BADGES_CONFIG
@@ -96,7 +99,7 @@ function getBadges(member, userData = {}, topRanking = 0) {
         })
         .map(badge => `${badge.emoji} ${badge.name}`);
     
-    return badges.length > 0 ? badges.join('\n') : 'Nenhuma insígnia'; // Alterado para quebra de linha para ficar mais bonito no userinfo
+    return badges.length > 0 ? badges.join('\n') : 'Nenhuma insígnia';
 }
 
 function getAllBadges() {
