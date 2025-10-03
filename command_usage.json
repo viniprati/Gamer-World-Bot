@@ -1,6 +1,6 @@
 {
   "983870132063453235": {
-    "monthlyCount": 34,
+    "monthlyCount": 39,
     "lastMonth": "2025-10"
   },
   "820041555443449856": {
@@ -20,7 +20,7 @@
     "lastMonth": "2025-10"
   },
   "479650466343682048": {
-    "monthlyCount": 19,
+    "monthlyCount": 21,
     "lastMonth": "2025-10"
   },
   "1077723832036630528": {
@@ -28,11 +28,11 @@
     "lastMonth": "2025-10"
   },
   "1240227583673630762": {
-    "monthlyCount": 6,
+    "monthlyCount": 8,
     "lastMonth": "2025-10"
   },
   "759208002300936212": {
-    "monthlyCount": 15,
+    "monthlyCount": 17,
     "lastMonth": "2025-10"
   },
   "1014181401756704778": {
@@ -44,8 +44,8 @@
     "lastMonth": "2025-10"
   },
   "1177007210144989324": {
-    "monthlyCount": 9,
-    "lastMonth": "2025-09"
+    "monthlyCount": 3,
+    "lastMonth": "2025-10"
   },
   "793310332172238849": {
     "monthlyCount": 3,
@@ -89,6 +89,10 @@
   },
   "1297912460812095521": {
     "monthlyCount": 2,
+    "lastMonth": "2025-10"
+  },
+  "803740778403987526": {
+    "monthlyCount": 7,
     "lastMonth": "2025-10"
   }
 }
