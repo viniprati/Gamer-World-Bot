@@ -5,6 +5,8 @@ const { token, prefix } = require('./config.json');
 const { sendLog } = require('./logger');
 const { startVipMonitor } = require('./utils/vipManager');
 const { checkAndBackup } = require('./utils/backupManager');
+const { startTempRoleMonitor } = require('./utils/tempRoleManager.js');
+const { startLiveLeaderboard, scheduleDailyWinner } = require('./utils/dailyTopManager.js');
 const ms = require('ms');
 
 // ===== Criar client =====
@@ -33,12 +35,12 @@ for (const folder of commandFolders) {
         for (const file of commandFiles) {
             try {
                 const command = require(path.join(folderPath, file));
-                // Lógica aprimorada para carregar tanto slash quanto prefix commands
+                command.category = folder; // ADICIONADO: Salva a categoria no comando
                 const commandName = command.data?.name || command.name;
                 if (commandName) {
                     client.commands.set(commandName, command);
                 } else {
-                    console.warn(`[Carregador] ⚠️ O comando ${file} não tem a propriedade 'name' ou 'data.name' e foi ignorado.`);
+                    console.warn(`[Carregador] ⚠️ O arquivo ${file} não é um comando válido e foi ignorado.`);
                 }
             } catch (error) {
                 console.error(`[Carregador] ❌ Falha ao carregar o comando no arquivo '${file}':`, error);
@@ -151,6 +153,9 @@ client.once('clientReady', () => {
     try {
         startVipMonitor(client);
         startRepReminder(client);
+        startTempRoleMonitor(client);
+        startLiveLeaderboard(client);
+        scheduleDailyWinner(client);
     } catch (error) {
         console.error('❌ Falha ao iniciar monitores:', error);
     }
@@ -159,8 +164,7 @@ client.once('clientReady', () => {
 
 // ===== Evento de Mensagem (PARA COMANDOS DE PREFIXO) =====
 client.on('messageCreate', async message => {
-    if (message.author.bot && message.author.id !== '297153970613387264') return;
-    if (!message.guild) return;
+    if (message.author.bot || !message.guild) return;
 
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
@@ -185,23 +189,29 @@ client.on('messageCreate', async message => {
 
         // RASTREAMENTO DE USO DE COMANDOS
         try {
-            let usageData = {};
-            if (fs.existsSync(usageFile)) {
-                const rawData = fs.readFileSync(usageFile, 'utf8');
-                if (rawData) usageData = JSON.parse(rawData);
-            }
             const userId = message.author.id;
+            
+            // Top Mensal
+            let usageData = fs.existsSync(usageFile) ? JSON.parse(fs.readFileSync(usageFile, 'utf8')) : {};
             const currentMonth = new Date().toISOString().slice(0, 7);
-            if (!usageData[userId]) {
-                usageData[userId] = { monthlyCount: 0, lastMonth: "0000-00" };
-            }
-            if (usageData[userId].lastMonth !== currentMonth) {
-                usageData[userId].monthlyCount = 1;
-                usageData[userId].lastMonth = currentMonth;
+            if (!usageData[userId] || usageData[userId].lastMonth !== currentMonth) {
+                usageData[userId] = { monthlyCount: 1, lastMonth: currentMonth };
             } else {
                 usageData[userId].monthlyCount += 1;
             }
             fs.writeFileSync(usageFile, JSON.stringify(usageData, null, 2));
+
+            // Top Diário
+            const commandsToIgnore = ['addcoins', 'removecoins'];
+            if (command.category === 'economia' && !commandsToIgnore.includes(command.name)) {
+                const dailyTopPath = path.join(__dirname, 'daily_top.json');
+                let dailyData = fs.existsSync(dailyTopPath) ? JSON.parse(fs.readFileSync(dailyTopPath, 'utf8')) : {};
+                const today = new Date().toISOString().slice(0, 10);
+                if (!dailyData[today]) dailyData[today] = {};
+                if (!dailyData[today][userId]) dailyData[today][userId] = 0;
+                dailyData[today][userId]++;
+                fs.writeFileSync(dailyTopPath, JSON.stringify(dailyData, null, 2));
+            }
         } catch (error) {
             console.error("Erro ao rastrear uso de comando:", error);
         }
@@ -218,7 +228,7 @@ client.on('messageCreate', async message => {
         // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
         
         // DETECTOR DE RESPOSTA DA LORITTA
-        if (message.author.id === '297153-970613387264') { // Corrigi um possível erro de digitação no ID
+        if (message.author.id === '297153970613387264') {
             const successMessage = "deu uma reputação para";
             if (message.content.includes(successMessage)) {
                 const match = message.content.match(/<@(\d+)>/);
@@ -252,19 +262,42 @@ client.on('messageCreate', async message => {
     }
 });
 
-// ==========================================================
-// ===== NOVO EVENTO PARA SLASH COMMANDS =====
-// ==========================================================
+// ===== Evento para SLASH COMMANDS =====
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
-
     const command = client.commands.get(interaction.commandName);
+    if (!command) return;
 
-    if (!command) {
-        console.error(`Nenhum comando correspondente a /${interaction.commandName} foi encontrado.`);
-        return;
+    // RASTREAMENTO DE USO DE COMANDOS
+    try {
+        const userId = interaction.user.id;
+        
+        // Top Mensal
+        let usageData = fs.existsSync(usageFile) ? JSON.parse(fs.readFileSync(usageFile, 'utf8')) : {};
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        if (!usageData[userId] || usageData[userId].lastMonth !== currentMonth) {
+            usageData[userId] = { monthlyCount: 1, lastMonth: currentMonth };
+        } else {
+            usageData[userId].monthlyCount += 1;
+        }
+        fs.writeFileSync(usageFile, JSON.stringify(usageData, null, 2));
+        
+        // Top Diário
+        const commandsToIgnore = ['addcoins', 'removecoins'];
+        if (command.category === 'economia' && !commandsToIgnore.includes(command.name)) {
+            const dailyTopPath = path.join(__dirname, 'daily_top.json');
+            let dailyData = fs.existsSync(dailyTopPath) ? JSON.parse(fs.readFileSync(dailyTopPath, 'utf8')) : {};
+            const today = new Date().toISOString().slice(0, 10);
+            if (!dailyData[today]) dailyData[today] = {};
+            if (!dailyData[today][userId]) dailyData[today][userId] = 0;
+            dailyData[today][userId]++;
+            fs.writeFileSync(dailyTopPath, JSON.stringify(dailyData, null, 2));
+        }
+    } catch (error) {
+        console.error("Erro ao rastrear uso de comando:", error);
     }
-
+    
+    // Execução do Comando
     try {
         await command.execute(client, interaction);
     } catch (error) {
