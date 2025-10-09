@@ -117,6 +117,9 @@ module.exports = {
         saveJsonSafe(ECONOMY_PATH, economy);
         saveJsonSafe(COOLDOWN_PATH, cooldowns);
 
+        scheduleReminder(userId, 'work', cooldownDuration);
+
+
         await sendLog(client, "economy", {
             userId: userId,
             action: 'Trabalhou (Comando Work)',
