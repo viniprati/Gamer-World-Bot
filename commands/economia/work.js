@@ -8,6 +8,9 @@ const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 const COOLDOWN_PATH = path.join(__dirname, '..', '..', 'work_cooldowns.json');
 const PREMIUM_PATH = path.join(__dirname, '..', '..', 'premium.json');
 
+// Função do reminderManager
+const { scheduleReminder } = require('../../utils/reminderManager.js');
+
 // Função para ler usuários premium (sem alteração)
 const getPremiumUsers = () => {
     try {

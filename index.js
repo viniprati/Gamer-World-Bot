@@ -7,6 +7,7 @@ const { startVipMonitor } = require('./utils/vipManager');
 const { checkAndBackup } = require('./utils/backupManager');
 const { startTempRoleMonitor } = require('./utils/tempRoleManager.js');
 const { startLiveLeaderboard, scheduleDailyWinner } = require('./utils/dailyTopManager.js');
+const { startReminderMonitor } = require('./utils/reminderManager.js');
 const ms = require('ms');
 
 // ===== Criar client =====
@@ -156,6 +157,7 @@ client.once('clientReady', () => {
         startTempRoleMonitor(client);
         startLiveLeaderboard(client);
         scheduleDailyWinner(client);
+        startReminderMonitor(client);
     } catch (error) {
         console.error('❌ Falha ao iniciar monitores:', error);
     }
