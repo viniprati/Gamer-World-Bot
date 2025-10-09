@@ -100,6 +100,9 @@ module.exports = {
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economy, null, 2));
         fs.writeFileSync(TRANSACTIONS_PATH, JSON.stringify(transactions, null, 2));
 
+        scheduleReminder(userId, 'daily', cooldown);
+
+
         await sendLog(client, "daily", {
             userId: userId,
             amount: amountReceived,
