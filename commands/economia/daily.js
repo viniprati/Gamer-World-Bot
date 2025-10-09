@@ -2,16 +2,12 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { sendLog } = require('../../logger');
+const { scheduleReminder } = require('../../utils/reminderManager.js');
 
-// Caminhos para os arquivos de dados
 const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
 const TRANSACTIONS_PATH = path.join(__dirname, '..', '..', 'transactions.json');
 const PREMIUM_PATH = path.join(__dirname, '..', '..', 'premium.json');
 
-// Função do reminderManager
-const { scheduleReminder } = require('../../utils/reminderManager.js');
-
-// Função para ler usuários premium (sem alteração)
 const getPremiumUsers = () => {
     try {
         if (!fs.existsSync(PREMIUM_PATH)) return { users: [] };
@@ -25,26 +21,27 @@ const getPremiumUsers = () => {
 };
 
 module.exports = {
-    // --- NOVO: Definição para o Slash Command ---
     data: new SlashCommandBuilder()
         .setName('daily')
         .setDescription('Resgate sua recompensa diária de moedas.'),
 
-    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'daily',
     description: 'Recebe moedas diariamente.',
     cooldown: 10,
 
     async execute(client, interactionOrMessage, args) {
-        // --- NOVO: Camada de Abstração ---
         const isSlash = interactionOrMessage.isChatInputCommand?.();
         const user = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
         const reply = (options) => {
-            return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.reply(options);
+            // Adicionando a correção para não pingar
+            const finalOptions = typeof options === 'string' ? { content: options } : options;
+            if (isSlash) {
+                return interactionOrMessage.reply(finalOptions);
+            }
+            finalOptions.allowedMentions = { repliedUser: false };
+            return interactionOrMessage.reply(finalOptions);
         };
-        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
 
-        // A partir daqui, o resto do código usa as variáveis unificadas 'user' e 'reply'.
         let economy = {};
         if (fs.existsSync(ECONOMY_PATH)) {
             economy = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
@@ -55,11 +52,18 @@ module.exports = {
             transactions = JSON.parse(fs.readFileSync(TRANSACTIONS_PATH, 'utf8'));
         }
 
-        const userId = user.id; // Alterado de message.author.id
+        const userId = user.id;
         const now = new Date();
 
         const premiumData = getPremiumUsers();
         const isPremium = premiumData.users.includes(userId);
+
+ 
+        let cooldownDuration = 24 * 60 * 60 * 1000;
+        if (isPremium) {
+            cooldownDuration *= 0.90;
+        }
+        // ==========================================================
 
         if (!transactions[userId]) transactions[userId] = [];
 
@@ -69,18 +73,12 @@ module.exports = {
 
         if (lastDaily) {
             const lastClaimTime = new Date(lastDaily.date).getTime();
-            let cooldown = 24 * 60 * 60 * 1000;
-            if (isPremium) {
-                cooldown *= 0.90;
-            }
-
             const timePassed = now.getTime() - lastClaimTime;
 
-            if (timePassed < cooldown) {
-                const timeLeft = cooldown - timePassed;
+            if (timePassed < cooldownDuration) { // Usa a nova variável
+                const timeLeft = cooldownDuration - timePassed;
                 const hours = Math.floor(timeLeft / (1000 * 60 * 60));
                 const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                // Alterado para usar a função de resposta unificada 'reply'
                 return reply(`⏳ Você já resgatou seu **daily**! Tente novamente em **${hours}h ${minutes}m**.`);
             }
         }
@@ -100,8 +98,8 @@ module.exports = {
         fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economy, null, 2));
         fs.writeFileSync(TRANSACTIONS_PATH, JSON.stringify(transactions, null, 2));
 
-        scheduleReminder(userId, 'daily', cooldown);
-
+        // A chamada agora usa a variável 'cooldownDuration' que sempre existe
+        scheduleReminder(userId, 'daily', cooldownDuration);
 
         await sendLog(client, "daily", {
             userId: userId,
@@ -117,7 +115,6 @@ module.exports = {
             .setFooter({ text: isPremium ? '✨ Bônus Premium Ativado!' : 'Volte amanhã para mais recompensas.' })
             .setTimestamp();
 
-        // Alterado para usar a função de resposta unificada 'reply'
         await reply({ embeds: [embed] });
     }
 };

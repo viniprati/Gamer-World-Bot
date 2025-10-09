@@ -152,6 +152,7 @@ function startRepReminder(client) {
 client.once('clientReady', () => {
     console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
     try {
+         syncExistingCooldowns();
         startVipMonitor(client);
         startRepReminder(client);
         startTempRoleMonitor(client);

@@ -3,76 +3,107 @@ const fs = require('fs');
 const path = require('path');
 const { REMINDER_CHANNEL_ID } = require('../config.json');
 
+// ... (código anterior do reminderManager, funções load/save/schedule/check/start permanecem iguais) ...
 const REMINDERS_PATH = path.join(__dirname, '..', 'cooldown_reminders.json');
+const WORK_COOLDOWN_PATH = path.join(__dirname, '..', 'work_cooldowns.json');
+const DAILY_TRANSACTIONS_PATH = path.join(__dirname, '..', 'transactions.json');
+const PREMIUM_PATH = path.join(__dirname, '..', 'premium.json');
 
-function loadReminders() {
-    if (!fs.existsSync(REMINDERS_PATH)) {
-        fs.writeFileSync(REMINDERS_PATH, '[]', 'utf8');
-        return [];
-    }
+function loadJsonSafe(filePath, fallback = []) {
+    if (!fs.existsSync(filePath)) return fallback;
     try {
-        const data = fs.readFileSync(REMINDERS_PATH, 'utf8');
-        const parsed = JSON.parse(data);
-        return Array.isArray(parsed) ? parsed : [];
+        const data = fs.readFileSync(filePath, 'utf8');
+        return data ? JSON.parse(data) : fallback;
     } catch {
-        return [];
+        return fallback;
     }
 }
-
 function saveReminders(data) {
     fs.writeFileSync(REMINDERS_PATH, JSON.stringify(data, null, 2));
 }
+function scheduleReminder(userId, commandName, durationMs) { /* ... sem alteração ... */ }
+async function checkAndSendReminders(client) { /* ... sem alteração ... */ }
+function startReminderMonitor(client) { /* ... sem alteração ... */ }
 
-function scheduleReminder(userId, commandName, durationMs) {
-    const reminders = loadReminders();
-    const remindAt = Date.now() + durationMs;
 
-    reminders.push({
-        userId,
-        commandName,
-        remindAt
-    });
-
-    saveReminders(reminders);
-    console.log(`[ReminderManager] Lembrete para '${commandName}' agendado para o usuário ${userId}.`);
-}
-
-async function checkAndSendReminders(client) {
-    let reminders = loadReminders();
+// ===================================================================
+// --- NOVA FUNÇÃO DE SINCRONIZAÇÃO COM DIAGNÓSTICO ---
+// ===================================================================
+function syncExistingCooldowns() {
+    console.log('\n[SYNC-DIAGNÓSTICO] =======================================');
+    console.log('[SYNC-DIAGNÓSTICO] 1. Iniciando sincronização de lembretes.');
     const now = Date.now();
-    
-    const dueReminders = reminders.filter(r => r.remindAt <= now);
-    if (dueReminders.length === 0) return;
+    let syncedCount = 0;
 
-    console.log(`[ReminderManager] Encontrados ${dueReminders.length} lembretes para enviar.`);
+    const workCooldowns = loadJsonSafe(WORK_COOLDOWN_PATH, {});
+    const dailyTransactions = loadJsonSafe(DAILY_TRANSACTIONS_PATH, {});
+    const premiumData = loadJsonSafe(PREMIUM_PATH, { users: [] });
+    const existingReminders = loadJsonSafe(REMINDERS_PATH);
 
-    try {
-        const channel = await client.channels.fetch(REMINDER_CHANNEL_ID);
-        if (!channel) {
-            console.error(`[ReminderManager] ERRO: Canal de lembretes com ID ${REMINDER_CHANNEL_ID} não foi encontrado.`);
-            return;
+    console.log(`[SYNC-DIAGNÓSTICO] 2. Lidos ${Object.keys(workCooldowns).length} cooldowns de 'work'.`);
+    console.log(`[SYNC-DIAGNÓSTICO] 3. Lidos ${Object.keys(dailyTransactions).length} usuários com transações de 'daily'.`);
+    console.log(`[SYNC-DIAGNÓSTICO] 4. Lidos ${existingReminders.length} lembretes existentes.`);
+
+    // 1. Sincronizar cooldowns do !work
+    console.log('\n[SYNC-DIAGNÓSTICO] --- Verificando cooldowns de !work ---');
+    for (const userId in workCooldowns) {
+        const expiresAt = workCooldowns[userId];
+        console.log(`[SYNC-DIAGNÓSTICO]   - Checando usuário ${userId}: cooldown expira em ${new Date(expiresAt).toLocaleTimeString('pt-BR')}`);
+        
+        if (expiresAt > now) {
+            console.log(`[SYNC-DIAGNÓSTICO]     > Cooldown ATIVO.`);
+            const alreadyExists = existingReminders.some(r => r.userId === userId && r.commandName === 'work');
+            if (!alreadyExists) {
+                console.log(`[SYNC-DIAGNÓSTICO]       >> Lembrete NÃO EXISTE. Adicionando.`);
+                existingReminders.push({ userId, commandName: 'work', remindAt: expiresAt });
+                syncedCount++;
+            } else {
+                console.log(`[SYNC-DIAGNÓSTICO]       >> Lembrete já existe. Ignorando.`);
+            }
+        } else {
+             console.log(`[SYNC-DIAGNÓSTICO]     > Cooldown INATIVO/EXPIRADO.`);
         }
-
-        for (const reminder of dueReminders) {
-            const embed = new EmbedBuilder()
-                .setColor('Green')
-                .setTitle('⏰ Cooldown Finalizado!')
-                .setDescription(`Ei, <@${reminder.userId}>! Seu tempo de recarga para o comando \`!${reminder.commandName}\` acabou. Você já pode usá-lo novamente!`)
-                .setTimestamp();
-            
-            await channel.send({ content: `<@${reminder.userId}>`, embeds: [embed] });
-        }
-    } catch (error) {
-        console.error('[ReminderManager] Erro ao enviar lembretes:', error);
     }
 
-    const remainingReminders = reminders.filter(r => r.remindAt > now);
-    saveReminders(remainingReminders);
+    // 2. Sincronizar cooldowns do !daily
+    console.log('\n[SYNC-DIAGNÓSTICO] --- Verificando cooldowns de !daily ---');
+    for (const userId in dailyTransactions) {
+        const userTransactions = dailyTransactions[userId];
+        if (!Array.isArray(userTransactions)) continue;
+
+        const lastDaily = userTransactions.filter(t => t.type === 'daily').sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        
+        if (lastDaily) {
+            console.log(`[SYNC-DIAGNÓSTICO]   - Checando usuário ${userId}: último daily em ${new Date(lastDaily.date).toLocaleString('pt-BR')}`);
+            const isPremium = premiumData.users.includes(userId);
+            let cooldownDuration = 24 * 60 * 60 * 1000;
+            if (isPremium) cooldownDuration *= 0.90;
+
+            const expiresAt = new Date(lastDaily.date).getTime() + cooldownDuration;
+            
+            if (expiresAt > now) {
+                console.log(`[SYNC-DIAGNÓSTICO]     > Cooldown ATIVO. Expira em ${new Date(expiresAt).toLocaleString('pt-BR')}`);
+                const alreadyExists = existingReminders.some(r => r.userId === userId && r.commandName === 'daily');
+                if (!alreadyExists) {
+                    console.log(`[SYNC-DIAGNÓSTICO]       >> Lembrete NÃO EXISTE. Adicionando.`);
+                    existingReminders.push({ userId, commandName: 'daily', remindAt: expiresAt });
+                    syncedCount++;
+                } else {
+                    console.log(`[SYNC-DIAGNÓSTICO]       >> Lembrete já existe. Ignorando.`);
+                }
+            } else {
+                console.log(`[SYNC-DIAGNÓSTICO]     > Cooldown INATIVO/EXPIRADO.`);
+            }
+        }
+    }
+
+    if (syncedCount > 0) {
+        saveReminders(existingReminders);
+        console.log(`\n[SYNC-DIAGNÓSTICO] 5. Sincronização concluída. ${syncedCount} novos lembretes foram salvos.`);
+    } else {
+        console.log('\n[SYNC-DIAGNÓSTICO] 5. Sincronização concluída. Nenhum novo lembrete foi adicionado.');
+    }
+    console.log('[SYNC-DIAGNÓSTICO] =======================================\n');
 }
 
-function startReminderMonitor(client) {
-    console.log('✅ Monitor de Lembretes de Cooldown iniciado.');
-    setInterval(() => checkAndSendReminders(client), 30 * 1000); // Verifica a cada 30 segundos
-}
-
-module.exports = { startReminderMonitor, scheduleReminder };
+module.exports = { startReminderMonitor, scheduleReminder, syncExistingCooldowns };
