@@ -573,5 +573,95 @@
     "userId": "479650466343682048",
     "commandName": "work",
     "remindAt": 1760407982341
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1760410788453
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1760436722312
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "daily",
+    "remindAt": 1760519530453
+  },
+  {
+    "userId": "1177007210144989324",
+    "commandName": "work",
+    "remindAt": 1760447336211
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1760458144695
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "daily",
+    "remindAt": 1760533262762
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1760458746673
+  },
+  {
+    "userId": "957697797245792326",
+    "commandName": "work",
+    "remindAt": 1760461788500
+  },
+  {
+    "userId": "1240227583673630762",
+    "commandName": "daily",
+    "remindAt": 1760538482895
+  },
+  {
+    "userId": "1240227583673630762",
+    "commandName": "work",
+    "remindAt": 1760463969560
+  },
+  {
+    "userId": "957697797245792326",
+    "commandName": "daily",
+    "remindAt": 1760547376602
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1760464777706
+  },
+  {
+    "userId": "957697797245792326",
+    "commandName": "work",
+    "remindAt": 1760479035321
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1760479864710
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1760482903376
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "daily",
+    "remindAt": 1760565706977
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1760483652991
+  },
+  {
+    "userId": "957697797245792326",
+    "commandName": "work",
+    "remindAt": 1760483669001
   }
 ]
