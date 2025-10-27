@@ -1898,5 +1898,35 @@
     "userId": "833141877049524256",
     "commandName": "work",
     "remindAt": 1761530571726
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761531308019
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "daily",
+    "remindAt": 1761616413542
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761536421528
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761562736115
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761596277774
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761602289184
   }
 ]
