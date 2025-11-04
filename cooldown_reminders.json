@@ -2073,5 +2073,230 @@
     "userId": "833141877049524256",
     "commandName": "daily",
     "remindAt": 1762022274789
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761953155780
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "daily",
+    "remindAt": 1762035959510
+  },
+  {
+    "userId": "957697797245792326",
+    "commandName": "daily",
+    "remindAt": 1762043436530
+  },
+  {
+    "userId": "957697797245792326",
+    "commandName": "work",
+    "remindAt": 1761960639783
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1761960284562
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "daily",
+    "remindAt": 1762034806953
+  },
+  {
+    "userId": "525014697062432771",
+    "commandName": "work",
+    "remindAt": 1761960648462
+  },
+  {
+    "userId": "525014697062432771",
+    "commandName": "daily",
+    "remindAt": 1762043451750
+  },
+  {
+    "userId": "1283391201759854633",
+    "commandName": "daily",
+    "remindAt": 1762043477338
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1761960740414
+  },
+  {
+    "userId": "793310332172238849",
+    "commandName": "daily",
+    "remindAt": 1762043794953
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761960642198
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "daily",
+    "remindAt": 1762035199224
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "work",
+    "remindAt": 1761960681567
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1761992114422
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762007734416
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762021980619
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762023454508
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762035680958
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762043707036
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "daily",
+    "remindAt": 1762118232450
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762048238662
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1762073792515
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "daily",
+    "remindAt": 1762148324549
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762083584325
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "daily",
+    "remindAt": 1762161425618
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "work",
+    "remindAt": 1762086908718
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762096256077
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "daily",
+    "remindAt": 1762179060689
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762101745375
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762104008592
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "work",
+    "remindAt": 1762107326951
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1762108392378
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762119361134
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1762124807832
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762126656654
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "work",
+    "remindAt": 1762137097587
+  },
+  {
+    "userId": "833141877049524256",
+    "commandName": "work",
+    "remindAt": 1762139184613
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1762155005998
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "daily",
+    "remindAt": 1762229561135
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "work",
+    "remindAt": 1762190120777
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "daily",
+    "remindAt": 1762264647655
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762200446283
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "daily",
+    "remindAt": 1762274971371
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1762209362641
   }
 ]
