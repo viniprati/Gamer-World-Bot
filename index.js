@@ -328,3 +328,5 @@ process.on('uncaughtException', error => {
 
 // ===== Login =====
 client.login(token);
+
+// Tá procurando oq aqui?
