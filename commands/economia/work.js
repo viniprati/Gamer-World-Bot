@@ -133,8 +133,8 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor(isPremium ? '#FFD700' : chosenWork.color)
             .setTitle(chosenWork.title)
-            .setAuthor({ name: `Diário de Missão de ${user.username}`, iconURL: user.displayAvatarURL() }) // Alterado
-            .setThumbnail(user.displayAvatarURL({ dynamic: true })) // Alterado
+            .setAuthor({ name: `Diário de Missão de ${user.username}`, iconURL: user.displayAvatarURL() }) 
+            .setThumbnail(user.displayAvatarURL({ dynamic: true })) 
             .setDescription(formattedMessage)
             .addFields(
                 { name: '✅ Recompensa', value: `+ **${amountEarned.toLocaleString('pt-BR')}** GameCoins`, inline: true },
@@ -143,6 +143,6 @@ module.exports = {
             .setTimestamp()
             .setFooter({ text: isPremium ? '✨ Bônus Premium Ativado!' : 'Missão concluída com sucesso!' });
             
-        await reply({ embeds: [embed] }); // Alterado
+        await reply({ embeds: [embed] });
     },
 };
