@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
+// --- MUDANÇA 1: Importe o MessageFlags ---
+const { SlashCommandBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 
 module.exports = {
     // --- NOVO: Definição para o Slash Command ---
@@ -11,7 +12,6 @@ module.exports = {
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(100))
-        // Garante que apenas membros com permissão de gerenciar mensagens possam usar o comando
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages),
 
     // --- ANTIGO: Informações para o Prefix Command ---
@@ -29,7 +29,8 @@ module.exports = {
 
         const reply = (options) => {
             const finalOptions = typeof options === 'string' ? { content: options } : options;
-            if (isSlash) finalOptions.ephemeral = true;
+            // --- MUDANÇA 2: Substitua 'ephemeral' por 'flags' ---
+            if (isSlash) finalOptions.flags = MessageFlags.Ephemeral;
             return isSlash ? interactionOrMessage.reply(finalOptions) : interactionOrMessage.reply(finalOptions);
         };
         // --- FIM DA CAMADA DE ABSTRAÇÃO ---
@@ -48,7 +49,8 @@ module.exports = {
         try {
             // Se for slash, precisamos de uma resposta inicial para a interação não falhar
             if (isSlash) {
-                await interactionOrMessage.deferReply({ ephemeral: true });
+                // --- MUDANÇA 3: Substitua 'ephemeral' por 'flags' aqui também ---
+                await interactionOrMessage.deferReply({ flags: MessageFlags.Ephemeral });
             }
 
             const deletedMessages = await channel.bulkDelete(amount, true);
@@ -58,7 +60,6 @@ module.exports = {
             // Envia a resposta de sucesso e a apaga após 5 segundos
             if (isSlash) {
                 await interactionOrMessage.editReply({ content: successMessage });
-                // Não é necessário apagar a resposta efêmera, ela some sozinha.
             } else {
                 channel.send(successMessage).then(msg => {
                     setTimeout(() => msg.delete().catch(() => {}), 5000);

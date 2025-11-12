@@ -150,7 +150,7 @@ function startRepReminder(client) {
 
 // ===== Evento de Bot Pronto =====
 client.once('clientReady', () => {
-    console.log(`🤖 Gamer World Bot online como ${client.user.tag}`);
+    console.log(`🤖 Gamer Shark Bot online como ${client.user.tag}`);
     try {
          syncExistingCooldowns();
         startVipMonitor(client);
