@@ -1,0 +1,63 @@
+-- Criação da Tabela 1: Usuários
+-- Armazena informações básicas dos usuários do bot/jogo.
+
+CREATE TABLE usuarios (
+    usuario_id INTEGER PRIMARY KEY AUTOINCREMENT, -- Identificador único do usuário
+    nome_usuario VARCHAR(50) NOT NULL UNIQUE,     -- Nome de usuário (ex: Discord Tag)
+    saldo_moedas INTEGER DEFAULT 0,               -- Moeda virtual do jogo/bot
+    data_registro DATE DEFAULT CURRENT_DATE,      -- Data em que o usuário foi registrado
+    nivel INTEGER DEFAULT 1                       -- Nível atual do usuário
+);
+
+---
+
+-- Criação da Tabela 2: Jogos
+-- Armazena uma lista de jogos ou itens principais do mundo.
+
+CREATE TABLE jogos (
+    jogo_id INTEGER PRIMARY KEY AUTOINCREMENT,    -- Identificador único do jogo/item
+    nome VARCHAR(100) NOT NULL,                   -- Nome do jogo ou item
+    descricao TEXT,                               -- Descrição detalhada
+    preco INTEGER DEFAULT 0                       -- Preço (se for um item para compra)
+);
+
+---
+
+-- Criação da Tabela 3: Inventário
+-- Tabela de relacionamento para armazenar quais jogos/itens cada usuário possui.
+
+CREATE TABLE inventario (
+    inventario_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    jogo_id INTEGER NOT NULL,
+    quantidade INTEGER DEFAULT 1,                 -- Quantidade deste item/jogo no inventário
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id),
+    FOREIGN KEY (jogo_id) REFERENCES jogos(jogo_id)
+);
+
+-- Índices para otimizar buscas
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_jogo ON inventario (usuario_id, jogo_id);
+
+--  Inserção de Usuários de Exemplo
+INSERT INTO usuarios (nome_usuario, saldo_moedas, nivel) VALUES
+('Jeferson_Dev', 5000, 15),
+('GamerPro_77', 1200, 5),
+('Vinip_Tester', 250, 2);
+
+--  Inserção de Jogos/Itens de Exemplo
+INSERT INTO jogos (nome, descricao, preco) VALUES
+('Espada Lendária', 'Uma espada rara, causa grande dano.', 1500),
+('Poção de Cura', 'Restaura a vida imediatamente.', 100),
+('Mapa Secreto', 'Revela uma área escondida no jogo.', 3000),
+('Escudo de Ferro', 'Aumenta significativamente a defesa.', 800);
+
+--  Inserção de Itens no Inventário
+-- Jeferson_Dev (usuario_id 1)
+INSERT INTO inventario (usuario_id, jogo_id, quantidade) VALUES
+(1, 1, 1), -- 1x Espada Lendária
+(1, 2, 10); -- 10x Poções de Cura
+
+-- GamerPro_77 (usuario_id 2)
+INSERT INTO inventario (usuario_id, jogo_id, quantidade) VALUES
+(2, 2, 5), -- 5x Poções de Cura
+(2, 4, 1); -- 1x Escudo de Ferro
