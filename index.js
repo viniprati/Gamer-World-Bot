@@ -330,3 +330,6 @@ process.on('uncaughtException', error => {
 client.login(token);
 
 // Tá procurando oq aqui?
+
+//última reinicialização 20:55
+
