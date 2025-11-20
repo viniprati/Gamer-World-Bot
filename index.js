@@ -331,5 +331,5 @@ client.login(token);
 
 // Tá procurando oq aqui?
 
-//última reinicialização 18:50
+//última reinicialização 21:48
 
