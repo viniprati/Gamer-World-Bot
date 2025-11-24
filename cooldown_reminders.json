@@ -3003,5 +3003,40 @@
     "userId": "803740778403987526",
     "commandName": "work",
     "remindAt": 1763859250779
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1763965779172
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "daily",
+    "remindAt": 1764040303821
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "work",
+    "remindAt": 1763990589240
+  },
+  {
+    "userId": "479650466343682048",
+    "commandName": "daily",
+    "remindAt": 1764065111536
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1764002822636
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "daily",
+    "remindAt": 1764082485160
+  },
+  {
+    "userId": "983870132063453235",
+    "commandName": "work",
+    "remindAt": 1764007968106
   }
 ]
