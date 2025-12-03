@@ -3238,5 +3238,15 @@
     "userId": "479650466343682048",
     "commandName": "work",
     "remindAt": 1764707110457
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "daily",
+    "remindAt": 1764828885550
+  },
+  {
+    "userId": "803740778403987526",
+    "commandName": "work",
+    "remindAt": 1764754367225
   }
 ]
