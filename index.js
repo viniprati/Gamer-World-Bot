@@ -314,6 +314,10 @@ client.on('interactionCreate', async interaction => {
 });
 
 
+
+
+
+
 // ===== Captura de Erros Globais =====
 process.on('unhandledRejection', error => {
     console.error('ERRO GLOBAL (Unhandled Rejection):', error);
@@ -332,4 +336,8 @@ client.login(token);
 // Tá procurando oq aqui?
 
 //última reinicialização 22:18
+
+
+
+
 
