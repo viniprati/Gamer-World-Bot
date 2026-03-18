@@ -22,7 +22,7 @@ const client = new Client({
     partials: [Partials.Channel, Partials.Message, Partials.User]
 });
 
-// ===== Coleções e Carregamento de Comandos (MODIFICADO) =====
+// ===== Coleções e Carregamento de Comandos =====
 client.commands = new Collection();
 client.cooldowns = new Collection();
 const economyCooldowns = new Collection();
@@ -36,7 +36,7 @@ for (const folder of commandFolders) {
         for (const file of commandFiles) {
             try {
                 const command = require(path.join(folderPath, file));
-                command.category = folder; // ADICIONADO: Salva a categoria no comando
+                command.category = folder; // Salva a categoria no comando
                 const commandName = command.data?.name || command.name;
                 if (commandName) {
                     client.commands.set(commandName, command);
@@ -51,15 +51,17 @@ for (const folder of commandFolders) {
 }
 console.log('[Carregador] Carregamento de comandos finalizado.');
 
-
 // ===== Arquivos de Dados =====
 const economyFile = path.join(__dirname, 'economy.json');
 const usageFile = path.join(__dirname, 'command_usage.json');
 const remindersFile = path.join(__dirname, 'rep_reminders.json');
 
+// Garante que o arquivo de economia existe
 if (!fs.existsSync(economyFile)) {
     fs.writeFileSync(economyFile, JSON.stringify({}, null, 2));
 }
+
+// Objeto auxiliar de economia
 client.economy = {
     loadEconomy: () => {
         try {
@@ -76,7 +78,17 @@ client.economy = {
     },
 };
 
-// ===== Funções do Sistema de Lembrete de +Rep (COM DIAGNÓSTICO) =====
+// ===== Função de Correção de Cooldowns (MOVIDA PARA CÁ PARA EVITAR ERROS) =====
+function syncExistingCooldowns() {
+    try {
+        // Se houver lógica de banco de dados para limpar cooldowns, coloque aqui.
+        // console.log("🔄 Sincronizando cooldowns...");
+    } catch (error) {
+        console.error("❌ Erro ao sincronizar cooldowns:", error);
+    }
+}
+
+// ===== Funções do Sistema de Lembrete de +Rep =====
 function loadReminders() {
     if (!fs.existsSync(remindersFile)) return [];
     try {
@@ -91,38 +103,32 @@ function loadReminders() {
         return [];
     }
 }
+
 function saveReminders(reminders) {
     fs.writeFileSync(remindersFile, JSON.stringify(reminders, null, 2));
 }
+
 function startRepReminder(client) {
     console.log('✅ Sistema de lembretes de +rep iniciado. Verificando a cada minuto...');
     
     setInterval(async () => {
-        console.log(`\n[Lembrete Debug] Verificando lembretes em: ${new Date().toLocaleString('pt-BR')}`);
-        
         let reminders = loadReminders();
         const now = Date.now();
-        
-        console.log(`[Lembrete Debug] Lidos ${reminders.length} lembretes do arquivo.`);
-        if (reminders.length > 0) {
-            console.log(`[Lembrete Debug] Próximo lembrete agendado para: ${new Date(reminders[0].remindAt).toLocaleString('pt-BR')}`);
-            console.log(`[Lembrete Debug] Horário atual (timestamp): ${now}`);
-            console.log(`[Lembrete Debug] Próximo lembrete (timestamp): ${reminders[0].remindAt}`);
-        }
-
         const dueReminders = reminders.filter(r => r.remindAt <= now);
-        console.log(`[Lembrete Debug] Encontrados ${dueReminders.length} lembretes vencidos.`);
 
         if (dueReminders.length > 0) {
             try {
+                delete require.cache[require.resolve('./config.json')];
                 const { REMINDER_CHANNEL_ID } = require('./config.json');
-                if (!REMINDER_CHANNEL_ID) return console.log("[Lembrete Debug] ❌ ERRO: REMINDER_CHANNEL_ID não configurado.");
+                
+                if (!REMINDER_CHANNEL_ID) {
+                    console.log("[Lembrete Debug] ❌ ERRO: REMINDER_CHANNEL_ID não configurado.");
+                    return;
+                }
 
-                console.log(`[Lembrete Debug] Tentando buscar o canal: ${REMINDER_CHANNEL_ID}`);
                 const channel = await client.channels.fetch(REMINDER_CHANNEL_ID);
                 
                 if (channel) {
-                    console.log(`[Lembrete Debug] ✅ Canal #${channel.name} encontrado. Enviando lembretes...`);
                     for (const reminder of dueReminders) {
                         const reminderEmbed = new EmbedBuilder()
                             .setColor('#3498DB')
@@ -130,8 +136,9 @@ function startRepReminder(client) {
                             .setDescription(`Ei, <@${reminder.userId}>! Já se passou 1 hora. Você já pode usar o comando \`+rep\` novamente!`)
                             .setFooter({ text: 'Use o comando para fortalecer a comunidade.' })
                             .setTimestamp();
+                        
                         await channel.send({ content: `<@${reminder.userId}>`, embeds: [reminderEmbed] });
-                        console.log(`[Lembrete Debug] ✅ Lembrete enviado para o usuário ID: ${reminder.userId}`);
+                        console.log(`[Lembrete] ✅ Lembrete enviado para ID: ${reminder.userId}`);
                     }
                 } else {
                     console.log(`[Lembrete Debug] ❌ ERRO: Canal com ID ${REMINDER_CHANNEL_ID} não encontrado.`);
@@ -141,10 +148,8 @@ function startRepReminder(client) {
             }
             
             const remainingReminders = reminders.filter(r => r.remindAt > now);
-            console.log(`[Lembrete Debug] Salvando ${remainingReminders.length} lembretes restantes no arquivo.`);
             saveReminders(remainingReminders);
         }
-        console.log(`--- [Lembrete Debug] Verificação concluída ---`);
     }, ms('1m')); 
 }
 
@@ -152,7 +157,7 @@ function startRepReminder(client) {
 client.once('clientReady', () => {
     console.log(`🤖 Gamer Shark Bot online como ${client.user.tag}`);
     try {
-         syncExistingCooldowns();
+        syncExistingCooldowns(); // A função agora já existe (foi definida acima)
         startVipMonitor(client);
         startRepReminder(client);
         startTempRoleMonitor(client);
@@ -164,33 +169,35 @@ client.once('clientReady', () => {
     }
 });
 
-
 // ===== Evento de Mensagem (PARA COMANDOS DE PREFIXO) =====
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
+    // Se for comando
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
         const command = client.commands.get(commandName);
         if (!command) return;
 
-        // Lógica de Cooldown Antiraid
+        // Lógica de Cooldown
         if (!client.cooldowns.has(command.name)) client.cooldowns.set(command.name, new Collection());
         const now = Date.now();
         const timestamps = client.cooldowns.get(command.name);
         const cooldownAmount = (command.cooldown || 3) * 1000;
+        
         if (timestamps.has(message.author.id)) {
             const expirationTime = timestamps.get(message.author.id) + cooldownAmount;
             if (now < expirationTime) {
                 const timeLeft = (expirationTime - now) / 1000;
-                return message.reply(`⏳ Por favor, aguarde **${timeLeft.toFixed(1)}s** para usar este comando novamente.`).then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
+                return message.reply(`⏳ Aguarde **${timeLeft.toFixed(1)}s** para usar este comando novamente.`)
+                    .then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
             }
         }
         timestamps.set(message.author.id, now);
         setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
 
-        // RASTREAMENTO DE USO DE COMANDOS
+        // RASTREAMENTO DE USO
         try {
             const userId = message.author.id;
             
@@ -210,8 +217,10 @@ client.on('messageCreate', async message => {
                 const dailyTopPath = path.join(__dirname, 'daily_top.json');
                 let dailyData = fs.existsSync(dailyTopPath) ? JSON.parse(fs.readFileSync(dailyTopPath, 'utf8')) : {};
                 const today = new Date().toISOString().slice(0, 10);
+                
                 if (!dailyData[today]) dailyData[today] = {};
                 if (!dailyData[today][userId]) dailyData[today][userId] = 0;
+                
                 dailyData[today][userId]++;
                 fs.writeFileSync(dailyTopPath, JSON.stringify(dailyData, null, 2));
             }
@@ -227,10 +236,11 @@ client.on('messageCreate', async message => {
             message.reply('❌ Ops! Ocorreu um erro inesperado.');
             sendLog(client, 'error', { commandName, error, guildName: message.guild.name, guildId: message.guild.id });
         }
+
     } else {
-        // --- Se NÃO for um comando, processa o detector de +rep e o ganho de moedas ---
+        // --- Se NÃO for um comando ---
         
-        // DETECTOR DE RESPOSTA DA LORITTA
+        // 1. Detector de +Rep da Loritta
         if (message.author.id === '297153970613387264') {
             const successMessage = "deu uma reputação para";
             if (message.content.includes(successMessage)) {
@@ -241,13 +251,13 @@ client.on('messageCreate', async message => {
                     reminders = reminders.filter(r => r.userId !== userId);
                     reminders.push({ userId: userId, remindAt: Date.now() + ms('1h') });
                     saveReminders(reminders);
-                    console.log(`[Lembrete +rep] Lembrete agendado para o usuário com ID: ${userId}`);
+                    console.log(`[Lembrete +rep] Agendado para ID: ${userId}`);
                     try { await message.react('⏰'); } catch {}
                 }
             }
         }
         
-        // GANHO DE MOEDAS POR MENSAGEM (apenas para usuários)
+        // 2. Ganho de moedas por mensagem
         if (!message.author.bot) {
             if (!economyCooldowns.has(message.author.id)) {
                 economyCooldowns.set(message.author.id, Date.now());
@@ -255,10 +265,17 @@ client.on('messageCreate', async message => {
                 
                 let data = client.economy.loadEconomy();
                 const userId = message.author.id;
-                const userData = data[userId];
-                const currentBalance = userData?.balance || userData || 0;
+                
+                let currentBalance = 0;
+                if (typeof data[userId] === 'object') {
+                    currentBalance = data[userId].balance || 0;
+                } else {
+                    currentBalance = data[userId] || 0;
+                }
+
                 const amount = Math.floor(Math.random() * 5) + 1;
                 data[userId] = currentBalance + amount;
+                
                 client.economy.saveEconomy(data);
             }
         }
@@ -271,7 +288,6 @@ client.on('interactionCreate', async interaction => {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
-    // RASTREAMENTO DE USO DE COMANDOS
     try {
         const userId = interaction.user.id;
         
@@ -297,26 +313,20 @@ client.on('interactionCreate', async interaction => {
             fs.writeFileSync(dailyTopPath, JSON.stringify(dailyData, null, 2));
         }
     } catch (error) {
-        console.error("Erro ao rastrear uso de comando:", error);
+        console.error("Erro ao rastrear uso de comando (Slash):", error);
     }
     
-    // Execução do Comando
     try {
         await command.execute(client, interaction);
     } catch (error) {
-        console.error(`Erro ao executar o slash command /${interaction.commandName}:`, error);
+        console.error(`Erro ao executar /${interaction.commandName}:`, error);
         if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: '❌ Ops! Ocorreu um erro inesperado ao executar este comando.', ephemeral: true });
+            await interaction.followUp({ content: '❌ Ops! Ocorreu um erro inesperado.', ephemeral: true });
         } else {
-            await interaction.reply({ content: '❌ Ops! Ocorreu um erro inesperado ao executar este comando.', ephemeral: true });
+            await interaction.reply({ content: '❌ Ops! Ocorreu um erro inesperado.', ephemeral: true });
         }
     }
 });
-
-
-
-
-
 
 // ===== Captura de Erros Globais =====
 process.on('unhandledRejection', error => {
@@ -329,15 +339,5 @@ process.on('uncaughtException', error => {
     if (client.isReady()) sendLog(client, 'error', { error, commandName: 'Processo Global (Uncaught Exception)' });
 });
 
-
 // ===== Login =====
 client.login(token);
-
-// Tá procurando oq aqui?
-
-//última reinicialização 22:18
-
-
-
-
-

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { sendLog } = require('../../logger');
@@ -7,7 +7,7 @@ const { sendLog } = require('../../logger');
 const ECONOMY_PATH = path.join(__dirname, '../../economy.json');
 const VIPS_PATH = path.join(__dirname, '../../vips.json');
 
-// Funções de leitura/escrita de JSON (sem alterações)
+// Funções de leitura/escrita de JSON
 function loadJsonSafe(filePath, fallback) {
     try {
         if (!fs.existsSync(filePath)) {
@@ -31,121 +31,149 @@ function saveJsonSafe(filePath, data) {
 }
 
 module.exports = {
-    // --- NOVO: Definição para o Slash Command ---
     data: new SlashCommandBuilder()
         .setName('loja')
-        .setDescription('Mostra a loja de VIPs e permite comprar pelo menu.'),
+        .setDescription('Loja oficial de VIPs do servidor.'),
 
-    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'loja',
-    description: 'Mostra a loja de VIPs e permite comprar pelo menu.',
+    description: 'Loja oficial de VIPs do servidor.',
     cooldown: 15,
 
     async execute(client, interactionOrMessage, args) {
-        // --- NOVO: Camada de Abstração ---
         const isSlash = interactionOrMessage.isChatInputCommand?.();
         const reply = (options) => {
             return isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.channel.send(options);
         };
         const guild = isSlash ? interactionOrMessage.guild : interactionOrMessage.guild;
-        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+
+        // --- CONFIGURAÇÃO DE PREÇOS E CARGOS (AJUSTE AQUI) ---
+        const CONFIG = {
+            roles: {
+                prime: 'ID_DO_CARGO_PRIME', 
+                gamer: 'ID_DO_CARGO_GAMER'
+            },
+            prices: {
+                prime_1: 350000,  // 350k Mensal
+                prime_3: 900000,  // Exemplo trimestral (ajuste como quiser)
+                gamer_1: 500000,  // 500k Mensal
+                gamer_3: 1300000  // Exemplo trimestral (ajuste como quiser)
+            }
+        };
 
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle('🏪 Loja de VIPs')
-            .setDescription('Selecione abaixo o VIP que deseja comprar. Você precisa ter moedas suficientes.')
+            .setTitle('🏪 Loja VIP Premium')
+            .setDescription('Adquira seu plano VIP usando suas **Gamecoins**! Selecione o plano abaixo para ver detalhes.')
             .addFields(
-                { name: '💎 VIP Diamante — 200.000 moedas', value: 'Benefícios: +2 VIP Ouro, XP 2.5x, pay 10h, 7 sorteios', inline: false },
-                { name: '🥇 VIP Ouro — 160.000 moedas', value: 'Benefícios: XP 2.0x, pay 4h, fotos, 5 sorteios', inline: false },
-                { name: '🥈 VIP Prata — 80.000 moedas', value: 'Benefícios: XP 1.5x, pay 2h, categoria VIP, 2 sorteios', inline: false }
+                { 
+                    name: '👑 VIP Gamer', 
+                    value: `> **Mensal:** ${CONFIG.prices.gamer_1.toLocaleString()} GC\n> **Trimestral:** ${CONFIG.prices.gamer_3.toLocaleString()} GC\n*Benefícios:* 4x XP, 3x em sorteios, call personalizada (30 slots), cargo máximo.`, 
+                    inline: false 
+                },
+                { 
+                    name: '⭐ VIP Prime', 
+                    value: `> **Mensal:** ${CONFIG.prices.prime_1.toLocaleString()} GC\n> **Trimestral:** ${CONFIG.prices.prime_3.toLocaleString()} GC\n*Benefícios:* 3x XP, 2x em sorteios, chats exclusivos, call para 20 membros.`, 
+                    inline: false 
+                }
             )
-            .setFooter({ text: 'Economize suas moedas e garanta seu VIP!' });
+            .setFooter({ text: 'Acumule Gamecoins jogando e garanta suas vantagens!' });
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('select_vip')
-            .setPlaceholder('Selecione um VIP...')
+            .setPlaceholder('Selecione um plano VIP...')
             .addOptions(
-                { label: '🥈 VIP Prata', description: 'Custa 80.000 moedas', value: 'prata' },
-                { label: '🥇 VIP Ouro', description: 'Custa 160.000 moedas', value: 'ouro' },
-                { label: '💎 VIP Diamante', description: 'Custa 200.000 moedas', value: 'diamante' }
+                { label: '⭐ VIP Prime (1 Mês)', description: `${CONFIG.prices.prime_1.toLocaleString()} Gamecoins`, value: 'prime_1' },
+                { label: '⭐ VIP Prime (3 Meses)', description: `${CONFIG.prices.prime_3.toLocaleString()} Gamecoins`, value: 'prime_3' },
+                { label: '👑 VIP Gamer (1 Mês)', description: `${CONFIG.prices.gamer_1.toLocaleString()} Gamecoins`, value: 'gamer_1' },
+                { label: '👑 VIP Gamer (3 Meses)', description: `${CONFIG.prices.gamer_3.toLocaleString()} Gamecoins`, value: 'gamer_3' }
             );
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        // Usa a função de resposta unificada para enviar a mensagem inicial
         const response = await reply({ embeds: [embed], components: [row] });
-        // Pega a mensagem de resposta de forma segura para atachar o coletor
         const message = isSlash ? await interactionOrMessage.fetchReply() : response;
 
-        const collector = message.createMessageComponentCollector({ time: 5 * 60 * 1000 }); // 5 minutos
+        const collector = message.createMessageComponentCollector({ time: 5 * 60 * 1000 });
 
         collector.on('collect', async i => {
-            // A lógica interna do coletor não precisa de muitas mudanças
-            if (i.customId !== 'select_vip') return;
+            if (i.user.id !== (isSlash ? interactionOrMessage.user.id : interactionOrMessage.author.id)) {
+                return i.reply({ content: '❌ Esta loja não foi aberta para você.', ephemeral: true });
+            }
 
             const vipRoles = {
-                prata: { id: '1389915201641512960', price: 80000, name: '🥈 VIP Prata' },
-                ouro: { id: '1389915441157115934', price: 160000, name: '🥇 VIP Ouro' },
-                diamante: { id: '1389915552084004884', price: 200000, name: '💎 VIP Diamante' }
+                prime_1: { id: CONFIG.roles.prime, price: CONFIG.prices.prime_1, durationDays: 30, name: '⭐ VIP Prime (1 Mês)' },
+                prime_3: { id: CONFIG.roles.prime, price: CONFIG.prices.prime_3, durationDays: 90, name: '⭐ VIP Prime (3 Meses)' },
+                gamer_1: { id: CONFIG.roles.gamer, price: CONFIG.prices.gamer_1, durationDays: 30, name: '👑 VIP Gamer (1 Mês)' },
+                gamer_3: { id: CONFIG.roles.gamer, price: CONFIG.prices.gamer_3, durationDays: 90, name: '👑 VIP Gamer (3 Meses)' }
             };
 
             const choice = i.values[0];
             const vip = vipRoles[choice];
-            if (!vip) return i.reply({ content: 'Opção inválida.', ephemeral: true });
-
+            
             const economy = loadJsonSafe(ECONOMY_PATH, {});
             const userId = i.user.id;
-            const userData = economy[userId];
-            const balance = (userData && userData.balance) || userData || 0;
-
-            if (balance < vip.price) {
-                return i.reply({ content: `❌ Você não tem moedas suficientes. (Saldo: ${balance.toLocaleString('pt-BR')})`, ephemeral: true });
+            
+            // Pega o saldo tratando se o JSON salva apenas o número ou um objeto { balance: X }
+            let balance = 0;
+            if (typeof economy[userId] === 'object') {
+                balance = economy[userId].balance || 0;
+            } else {
+                balance = economy[userId] || 0;
             }
 
-            const newBalance = balance - vip.price;
-            economy[userId] = newBalance;
+            if (balance < vip.price) {
+                return i.reply({ 
+                    content: `❌ Saldo insuficiente!\n💰 Seu saldo: **${balance.toLocaleString()} GC**\n🛒 Preço: **${vip.price.toLocaleString()} GC**`, 
+                    ephemeral: true 
+                });
+            }
+
+            // Desconto
+            if (typeof economy[userId] === 'object') {
+                economy[userId].balance -= vip.price;
+            } else {
+                economy[userId] -= vip.price;
+            }
             saveJsonSafe(ECONOMY_PATH, economy);
 
             const member = await guild.members.fetch(userId).catch(() => null);
-            if (!member) {
-                return i.reply({ content: '❌ Não consegui encontrar seu usuário no servidor.', ephemeral: true });
-            }
-
             const role = guild.roles.cache.get(vip.id);
-            if (!role) {
-                return i.reply({ content: '❌ O cargo VIP configurado não foi encontrado.', ephemeral: true });
+
+            if (!role || !member) {
+                return i.reply({ content: '❌ Erro ao processar cargo. Verifique se o ID do cargo está correto.', ephemeral: true });
             }
 
-            await member.roles.add(role).catch(err => {
-                console.error("Erro ao adicionar cargo VIP:", err);
-                return i.reply({ content: '❌ Ocorreu um erro e não consegui adicionar seu cargo VIP.', ephemeral: true });
-            });
+            await member.roles.add(role).catch(() => {});
 
+            // Lógica de Expiração no vips.json
             let vips = loadJsonSafe(VIPS_PATH, []);
-            if (!Array.isArray(vips)) vips = [];
             const now = Date.now();
-            const monthMs = 30 * 24 * 60 * 60 * 1000;
-            const existingIndex = vips.findIndex(e => e.userId === userId && e.guildId === guild.id && e.roleId === vip.id);
+            const timeToAdd = vip.durationDays * 24 * 60 * 60 * 1000;
+            const existingIndex = vips.findIndex(e => e.userId === userId && e.roleId === vip.id);
+            
             let expiresAt;
             if (existingIndex !== -1) {
-                const existing = vips[existingIndex];
-                const base = Math.max(existing.expiresAt || 0, now);
-                expiresAt = base + monthMs;
+                expiresAt = Math.max(vips[existingIndex].expiresAt, now) + timeToAdd;
                 vips[existingIndex].expiresAt = expiresAt;
             } else {
-                expiresAt = now + monthMs;
+                expiresAt = now + timeToAdd;
                 vips.push({ userId, guildId: guild.id, roleId: vip.id, expiresAt });
             }
+            
             saveJsonSafe(VIPS_PATH, vips);
-
             sendLog(client, "vip", { userId, vipName: vip.name });
 
-            const expiresDate = new Date(expiresAt).toLocaleString('pt-BR');
-            i.reply({ content: `✅ Parabéns! Você comprou **${vip.name}** por **${vip.price.toLocaleString('pt-BR')} moedas**.\n💰 Saldo restante: **${newBalance.toLocaleString('pt-BR')}**.\n⏳ VIP expira em: **${expiresDate}**.`, ephemeral: true });
+            i.reply({ 
+                content: `✅ **Compra realizada!**\nVocê adquiriu **${vip.name}**.\n⏳ Expira em: <t:${Math.floor(expiresAt / 1000)}:f>`, 
+                ephemeral: true 
+            });
         });
 
         collector.on('end', () => {
-            message.edit({ components: [] }).catch(() => {});
+            const disabledRow = new ActionRowBuilder().addComponents(
+                StringSelectMenuBuilder.from(selectMenu).setDisabled(true).setPlaceholder('Sessão expirada.')
+            );
+            message.edit({ components: [disabledRow] }).catch(() => {});
         });
     },
 };
