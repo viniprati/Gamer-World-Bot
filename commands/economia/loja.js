@@ -49,8 +49,8 @@ module.exports = {
         // --- CONFIGURAÇÃO DE PREÇOS E CARGOS (AJUSTE AQUI) ---
         const CONFIG = {
             roles: {
-                prime: 'ID_DO_CARGO_PRIME', 
-                gamer: 'ID_DO_CARGO_GAMER'
+                prime: '1483811823928213555', 
+                gamer: '1483811742252269699'
             },
             prices: {
                 prime_1: 350000,  // 350k Mensal
