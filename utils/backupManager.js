@@ -1,6 +1,8 @@
 const fs = require('fs');
-// Importa os IDs necessários do seu arquivo de configuração principal
-const { LOG_SERVER_ID, BACKUP_CHANNEL_ID } = require('../config.json');
+const { getConfig } = require('./config');
+
+const LOG_SERVER_ID = getConfig('LOG_SERVER_ID');
+const BACKUP_CHANNEL_ID = getConfig('BACKUP_CHANNEL_ID');
 
 // Define quantas alterações são necessárias para acionar um backup.
 // 50 é um bom número para evitar spam em um servidor ativo.

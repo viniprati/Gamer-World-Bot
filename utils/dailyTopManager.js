@@ -1,10 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { getConfig } = require('./config');
 // A linha 'const cron = require('node-cron');' foi REMOVIDA.
 
-const LEADERBOARD_CHANNEL_ID = '1423672870839652455';
-const ANNOUNCEMENT_CHANNEL_ID = '1423674699736416296';
+const LEADERBOARD_CHANNEL_ID = getConfig('LEADERBOARD_CHANNEL_ID', '1423672870839652455');
+const ANNOUNCEMENT_CHANNEL_ID = getConfig('ANNOUNCEMENT_CHANNEL_ID', '1423674699736416296');
 const DAILY_TOP_PATH = path.join(__dirname, '..', 'daily_top.json');
 const STATE_PATH = path.join(__dirname, '..', 'system_state.json');
 

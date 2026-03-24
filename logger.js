@@ -1,6 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
-// Importa TODOS os IDs de canais de log do seu config
-const { LOG_SERVER_ID, ECONOMY_LOG, VIP_LOG, TRANSACTION_LOG, DAILY_LOG } = require('./config.json');
+const { getConfig } = require('./utils/config');
+
+const LOG_SERVER_ID = getConfig('LOG_SERVER_ID');
+const ECONOMY_LOG = getConfig('ECONOMY_LOG');
+const VIP_LOG = getConfig('VIP_LOG');
+const TRANSACTION_LOG = getConfig('TRANSACTION_LOG');
+const DAILY_LOG = getConfig('DAILY_LOG');
 
 // ===================================================================
 // CONFIGURAÇÃO CENTRAL DE LOGS
@@ -41,6 +46,26 @@ const LOG_CONFIG = {
         title: '🔄 Log de Transação',
         buildDescription: data => `O usuário <@${data.fromId}> enviou **${data.amount.toLocaleString('pt-BR')} moedas** para <@${data.toId}>.`,
         validate: data => data.fromId && data.toId && data.amount != null,
+    },
+    premium: {
+        channelId: VIP_LOG,
+        color: '#8e44ad',
+        title: 'Log de Premium',
+        buildDescription: data =>
+            `**Acao:** ${data.action}\n` +
+            `**Usuario:** ${data.userTag || 'N/A'}\n` +
+            `**Admin:** ${data.adminTag || 'N/A'}`,
+        validate: data => data.action,
+    },
+    error: {
+        channelId: DAILY_LOG || ECONOMY_LOG,
+        color: '#e74c3c',
+        title: 'Log de Erro',
+        buildDescription: data =>
+            `**Origem:** ${data.commandName || 'desconhecida'}\n` +
+            `**Servidor:** ${data.guildName || 'N/A'} (${data.guildId || 'N/A'})\n` +
+            `**Erro:** \`${String(data.error?.message || data.error || 'sem detalhes').slice(0, 900)}\``,
+        validate: data => !!data.error,
     }
     // Adicione novos tipos de log aqui no futuro!
 };

@@ -1,10 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { ownerId } = require('../../config.json');
 const { sendLog } = require('../../logger');
+const { getConfig } = require('../../utils/config');
 
 const premiumFilePath = path.join(__dirname, '..', '..', 'premium.json');
+const ownerId = getConfig('OWNER_ID');
 
 // Função para ler usuários premium (sem alteração)
 const getPremiumUsers = () => {

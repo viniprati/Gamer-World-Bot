@@ -4,7 +4,8 @@
   "description": "Um bot para Discord focado na comunidade gamer.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "deploy:commands": "node scripts/deploy-commands.js"
   },
   "keywords": [],
   "author": "Seu Nome",
@@ -12,6 +13,7 @@
   "dependencies": {
     "better-sqlite3": "^9.4.3",
     "discord.js": "^14.15.3",
+    "dotenv": "^16.6.1",
     "ms": "^2.1.3"
   }
 }

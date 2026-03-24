@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { prefix } = require('../../config.json');
+const { getConfig } = require('../../utils/config');
+const prefix = getConfig('PREFIX', '!');
 
 const categoryEmojis = {
     'Básicos': '⚙️',

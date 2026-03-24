@@ -1,92 +1,50 @@
 const { SlashCommandBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const { sendLog } = require('../../logger.js');
-
-const ECONOMY_PATH = path.join(__dirname, '..', '..', 'economy.json');
+const { sendLog } = require('../../logger');
+const { loadEconomy, saveEconomy, getBalance, setBalance } = require('../../utils/economyManager');
 
 module.exports = {
-    // --- NOVO: Definição para o Slash Command ---
     data: new SlashCommandBuilder()
         .setName('give')
-        .setDescription('Transfere moedas para outro usuário.')
+        .setDescription('Transfere moedas para outro usuario.')
         .addUserOption(option =>
-            option.setName('usuario')
-                .setDescription('O usuário para quem você quer enviar as moedas.')
-                .setRequired(true))
+            option.setName('usuario').setDescription('Usuario alvo.').setRequired(true))
         .addIntegerOption(option =>
-            option.setName('quantidade')
-                .setDescription('A quantidade de moedas a ser enviada.')
-                .setRequired(true)
-                .setMinValue(1)), // Garante que a quantidade seja sempre positiva
+            option.setName('quantidade').setDescription('Quantidade de moedas.').setRequired(true).setMinValue(1)),
 
-    // --- ANTIGO: Informações para o Prefix Command ---
     name: 'give',
-    description: 'Transfere moedas para outro usuário.',
+    description: 'Transfere moedas para outro usuario.',
     cooldown: 15,
 
     async execute(client, interactionOrMessage, args) {
-        // --- NOVO: Camada de Abstração ---
         const isSlash = interactionOrMessage.isChatInputCommand?.();
-        
-        // Unifica como obter quem enviou o comando
         const author = isSlash ? interactionOrMessage.user : interactionOrMessage.author;
-        
-        // Unifica como obter o alvo e a quantidade
         const target = isSlash ? interactionOrMessage.options.getMember('usuario') : interactionOrMessage.mentions.members.first();
         const amount = isSlash ? interactionOrMessage.options.getInteger('quantidade') : parseInt(args[1], 10);
-        
-        // Unifica como enviar a resposta
-        const reply = (options) => {
-            // Para slash, a primeira resposta é sempre especial. As outras podem ser followUp.
-            if (isSlash) {
-                return interactionOrMessage.replied || interactionOrMessage.deferred 
-                    ? interactionOrMessage.followUp(options) 
-                    : interactionOrMessage.reply(options);
-            }
-            return interactionOrMessage.reply(options);
-        };
-        // --- FIM DA CAMADA DE ABSTRAÇÃO ---
+        const reply = options => isSlash ? interactionOrMessage.reply(options) : interactionOrMessage.reply(options);
 
-        // A partir daqui, o código usa as variáveis unificadas.
-        
-        // Validações
-        if (!target) return reply('Mencione o usuário para transferir moedas. Ex: `!give @alguem 100`');
-        if (isNaN(amount) || amount <= 0) return reply('Informe um valor válido e positivo.');
-        if (target.id === author.id) return reply('Você não pode transferir moedas para si mesmo.');
-        if (target.user.bot) return reply('Você não pode transferir moedas para um bot.');
+        if (!target) return reply('Informe um usuario valido para transferencia.');
+        if (isNaN(amount) || amount <= 0) return reply('Informe um valor valido e positivo.');
+        if (target.id === author.id) return reply('Voce nao pode transferir moedas para si mesmo.');
+        if (target.user.bot) return reply('Voce nao pode transferir moedas para bots.');
 
-
-        let economyData = {};
-        if (fs.existsSync(ECONOMY_PATH)) {
-            economyData = JSON.parse(fs.readFileSync(ECONOMY_PATH, 'utf8'));
-        }
-
-        const authorId = author.id;
-        const targetId = target.id;
-
-        const authorBalance = economyData[authorId] || 0;
-
+        const economy = loadEconomy();
+        const authorBalance = getBalance(economy, author.id);
         if (authorBalance < amount) {
-            return reply('Você não tem moedas suficientes para realizar esta transferência.');
+            return reply('Saldo insuficiente para esta transferencia.');
         }
 
-        const targetBalance = economyData[targetId] || 0;
+        const targetBalance = getBalance(economy, target.id);
+        setBalance(economy, author.id, authorBalance - amount);
+        setBalance(economy, target.id, targetBalance + amount);
+        saveEconomy(economy, client);
 
-        // Lógica de transferência
-        economyData[authorId] = authorBalance - amount;
-        economyData[targetId] = targetBalance + amount;
-        
-        fs.writeFileSync(ECONOMY_PATH, JSON.stringify(economyData, null, 2));
-
-        // Envia o log da transação
         await sendLog(client, 'transaction', {
-            fromId: authorId,
-            toId: targetId,
-            amount: amount
+            fromId: author.id,
+            toId: target.id,
+            amount
         });
 
-        const fmt = (n) => n.toLocaleString('pt-BR');
-        return reply(`✅ Você enviou 💰 **${fmt(amount)}** moedas para **${target.user.tag}**.`);
+        const fmt = n => n.toLocaleString('pt-BR');
+        return reply(`Transferencia realizada: **${fmt(amount)}** moedas para **${target.user.tag}**.`);
     },
 };

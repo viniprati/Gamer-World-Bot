@@ -1,7 +1,9 @@
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { REMINDER_CHANNEL_ID } = require('../config.json');
+const { getConfig } = require('./config');
+
+const REMINDER_CHANNEL_ID = getConfig('REMINDER_CHANNEL_ID');
 
 const REMINDERS_PATH = path.join(__dirname, '..', 'cooldown_reminders.json');
 const WORK_COOLDOWN_PATH = path.join(__dirname, '..', 'work_cooldowns.json');
